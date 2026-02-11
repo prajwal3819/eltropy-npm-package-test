@@ -67,7 +67,9 @@ jobs:
 
         PR_NUMBER=${{ github.event.pull_request.number || 0 }}
 
-        FINAL_VERSION="${NEXT_VERSION}-pre-${PR_NUMBER}"
+        SHORT_SHA=$(git rev-parse --short HEAD)
+
+        FINAL_VERSION="${NEXT_VERSION}-pre-${PR_NUMBER}.${SHORT_SHA}"
 
         echo "NEXT_TAG=$NEXT_TAG" >> $GITHUB_ENV
         echo "VERSION=$FINAL_VERSION" >> $GITHUB_ENV
