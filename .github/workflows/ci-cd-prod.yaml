@@ -1,0 +1,72 @@
+name: PROD Workflow
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  packages: write
+  issues: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    if: ${{ github.event_name == 'release' && github.event.release.target_commitish == 'master'}}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js 20
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@prajwal3819'
+    
+    - name: Install dependencies
+      run: npm install
+      env:
+        NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
+    
+    - name: Build package
+      run: npm run build
+    
+    - name: Build Storybook
+      run: npm run build-storybook
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-1
+    
+    
+    - name: Get latest tag and bump patch
+      id: version
+      run: |
+        git fetch --tags
+
+        TAG="${{ github.event.release.tag_name }}"
+
+        FINAL_VERSION=${TAG#v}
+        echo "VERSION=$FINAL_VERSION" >> $GITHUB_ENV
+        echo "Publishing version: $FINAL_VERSION"
+
+
+    
+    - name: Publish to GitHub Packages
+      run: |
+        npm version --no-git-tag-version ${VERSION}
+        npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+    
+    - name: Upload Storybook to S3
+      run: |
+        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/${{ github.event.release.tag_name }}/  --delete
+        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/ --delete 
