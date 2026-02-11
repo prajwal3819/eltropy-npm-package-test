@@ -14,16 +14,16 @@ A modern React component library built with Storybook and published to GitHub Pa
 
 ```bash
 # Using npm
-npm install @your-org/eltropy-npm-package-test
+npm install @prajwal3819/eltropy-npm-package-test
 
 # Using yarn
-yarn add @your-org/eltropy-npm-package-test
+yarn add @prajwal3819/eltropy-npm-package-test
 ```
 
 ## Usage
 
 ```jsx
-import { Button, Card, Badge } from '@your-org/eltropy-npm-package-test';
+import { Button, Card, Badge } from '@prajwal3819/eltropy-npm-package-test';
 
 function App() {
   return (
