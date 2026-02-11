@@ -90,7 +90,9 @@ jobs:
     - name: Upload Storybook to S3
       if: github.event_name == 'pull_request'
       run: |
-        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/storybook/pr-${{ github.event.number }}/ --delete
+        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/storybook/${{ env.VERSION }}/ --delete
+      env:
+        VERSION: ${{ env.VERSION }}
     
     - name: Create or update PR comment
       if: github.event_name == 'pull_request'
@@ -110,7 +112,7 @@ jobs:
           
           const message = '## Storybook Preview\n\n' +
             '**Preview URL:** https://' + process.env.STORYBOOK_BUCKET + 
-            '.s3.amazonaws.com/storybook/pr-' + context.issue.number + '/index.html\n' +
+            '.s3.amazonaws.com/storybook/' + process.env.VERSION + '/index.html\n' +
             '**Version:** ' + process.env.VERSION + '\n\n' +
             'To install this version:\n\n' +
             '```bash\n' +
