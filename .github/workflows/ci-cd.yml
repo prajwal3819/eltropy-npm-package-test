@@ -1,11 +1,7 @@
 name: CI/CD
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    tags:
-      - 'v*'
+  pull_request: 
 
 permissions:
   contents: read
@@ -14,7 +10,7 @@ permissions:
   issues: write
 
 jobs:
-  build-and-deploy:
+  build-and-publish:
     runs-on: ubuntu-latest
     
     steps:
@@ -51,21 +47,43 @@ jobs:
       id: pr
       run: echo "pr_number=${{ github.event.number }}" >> $GITHUB_OUTPUT
     
-    - name: Get latest tag
-      id: get_version
+    - name: Get latest tag and bump patch
+      id: version
       run: |
         git fetch --tags
-        TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "TAG=${TAG}" >> $GITHUB_ENV
-        echo "VERSION=${TAG}-pre-${{ steps.pr.outputs.pr_number || '0' }}" >> $GITHUB_ENV
+
+        TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+        TAG=${TAG:-v0.0.0}
+
+        echo "Latest tag: $TAG"
+
+        VERSION_NO_V=${TAG#v}
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NO_V"
+
+        PATCH=$((PATCH + 1))
+
+        NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+        NEXT_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+        PR_NUMBER=${{ github.event.pull_request.number || 0 }}
+
+        FINAL_VERSION="${NEXT_VERSION}-pre-${PR_NUMBER}"
+
+        echo "NEXT_TAG=$NEXT_TAG" >> $GITHUB_ENV
+        echo "VERSION=$FINAL_VERSION" >> $GITHUB_ENV
+
+        echo "Publishing version: $FINAL_VERSION"
+
+
     
     - name: Publish to GitHub Packages
       if: github.event_name == 'pull_request'
       run: |
         npm version --no-git-tag-version ${VERSION}
-        npm publish
+        npm publish --tag pre
       env:
-        NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
+        NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
     
     - name: Upload Storybook to S3
       if: github.event_name == 'pull_request'
