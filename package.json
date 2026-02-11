@@ -1,16 +1,19 @@
 {
-  "name": "@your-org/ui-lib",
+  "name": "@prajwal3819/eltropy-npm-package-test",
   "version": "0.1.0",
   "description": "A modern React component library",
   "main": "dist/index.js",
   "module": "dist/index.js",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "ci": "npm install",
     "start": "react-scripts start",
     "build": "babel src --out-dir dist --copy-files",
     "test": "react-scripts test",
-    "storybook": "start-storybook -p 6006",
-    "build-storybook": "build-storybook -o storybook-static", 
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build -o storybook-static",
     "prepare": "npm run build",
     "lint": "eslint src --ext .js"
   },
@@ -36,7 +39,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "storybook": "^7.4.0"
+    "storybook": "^7.6.21"
   },
   "browserslist": {
     "production": [
@@ -51,6 +54,6 @@
     ]
   },
   "publishConfig": {
-    "@your-org:registry": "https://npm.pkg.github.com"
+    "@prajwal3819:registry": "https://npm.pkg.github.com"
   }
 }

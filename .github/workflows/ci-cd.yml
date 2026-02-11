@@ -1,0 +1,108 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js 20
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@prajwal3819'
+    
+    - name: Install dependencies
+      run: npm install
+      env:
+        NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
+    
+    - name: Build package
+      run: npm run build
+    
+    - name: Build Storybook
+      run: npm run build-storybook
+    
+    - name: Configure AWS Credentials
+      if: github.event_name == 'pull_request'
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+    
+    - name: Get PR number
+      if: github.event_name == 'pull_request'
+      id: pr
+      run: echo "pr_number=${{ github.event.number }}" >> $GITHUB_OUTPUT
+    
+    - name: Get latest tag
+      id: get_version
+      run: |
+        git fetch --tags
+        TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "TAG=${TAG}" >> $GITHUB_ENV
+        echo "VERSION=${TAG}-pre-${{ steps.pr.outputs.pr_number || '0' }}" >> $GITHUB_ENV
+    
+    - name: Publish to GitHub Packages
+      if: github.event_name == 'pull_request'
+      run: |
+        npm version --no-git-tag-version ${VERSION}
+        npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
+    
+    - name: Upload Storybook to S3
+      if: github.event_name == 'pull_request'
+      run: |
+        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/storybook/pr-${{ github.event.number }}/ --delete
+    
+    - name: Create or update PR comment
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const { data: comments } = await github.rest.issues.listComments({
+            ...context.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.login === 'github-actions[bot]' && 
+            comment.body.includes('## Storybook Preview')
+          );
+          
+          const message = '## Storybook Preview\n\n' +
+            '**Preview URL:** https://' + process.env.STORYBOOK_BUCKET + 
+            '.s3.amazonaws.com/storybook/pr-' + context.issue.number + '/index.html\n' +
+            '**Version:** ' + process.env.VERSION + '\n\n' +
+            'To install this version:\n\n' +
+            '```bash\n' +
+            'npm install @prajwal3819/eltropy-npm-package-test@' + process.env.VERSION + '\n' +
+            '```';
+
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              ...context.repo,
+              comment_id: botComment.id,
+              body: message
+            });
+          } else {
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: message
+            });
+          }
+      env:
+        GITHUB_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
