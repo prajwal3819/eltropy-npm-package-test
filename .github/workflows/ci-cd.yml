@@ -1,14 +1,16 @@
-name: CI/CD
+name: PR Workflow
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    tags:
-      - 'v*'
+  pull_request: 
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+  issues: write
 
 jobs:
-  build-and-deploy:
+  build-and-publish:
     runs-on: ubuntu-latest
     
     steps:
@@ -38,33 +40,59 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-west-2
+        aws-region: us-west-1
     
     - name: Get PR number
       if: github.event_name == 'pull_request'
       id: pr
       run: echo "pr_number=${{ github.event.number }}" >> $GITHUB_OUTPUT
     
-    - name: Get latest tag
-      id: get_version
+    - name: Get latest tag and bump patch
+      id: version
       run: |
         git fetch --tags
-        TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "TAG=${TAG}" >> $GITHUB_ENV
-        echo "VERSION=${TAG}-pre-${{ steps.pr.outputs.pr_number || '0' }}" >> $GITHUB_ENV
+
+        TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+        TAG=${TAG:-v0.0.0}
+
+        echo "Latest tag: $TAG"
+
+        VERSION_NO_V=${TAG#v}
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NO_V"
+
+        PATCH=$((PATCH + 1))
+
+        NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+        NEXT_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+        PR_NUMBER=${{ github.event.pull_request.number || 0 }}
+
+        SHORT_SHA=$(git rev-parse --short HEAD)
+
+        FINAL_VERSION="${NEXT_VERSION}-pre-${PR_NUMBER}.${SHORT_SHA}"
+
+        echo "NEXT_TAG=$NEXT_TAG" >> $GITHUB_ENV
+        echo "VERSION=$FINAL_VERSION" >> $GITHUB_ENV
+
+        echo "Publishing version: $FINAL_VERSION"
+
+
     
     - name: Publish to GitHub Packages
       if: github.event_name == 'pull_request'
       run: |
         npm version --no-git-tag-version ${VERSION}
-        npm publish --access public
+        npm publish --tag pre
       env:
-        NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
+        NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
     
     - name: Upload Storybook to S3
       if: github.event_name == 'pull_request'
       run: |
-        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/storybook/pr-${{ github.event.number }}/ --delete
+        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/storybook/${{ env.VERSION }}/ --delete
+      env:
+        VERSION: ${{ env.VERSION }}
     
     - name: Create or update PR comment
       if: github.event_name == 'pull_request'
@@ -84,7 +112,7 @@ jobs:
           
           const message = '## Storybook Preview\n\n' +
             '**Preview URL:** https://' + process.env.STORYBOOK_BUCKET + 
-            '.s3.amazonaws.com/storybook/pr-' + context.issue.number + '/index.html\n' +
+            '.s3.amazonaws.com/storybook/' + process.env.VERSION + '/index.html\n' +
             '**Version:** ' + process.env.VERSION + '\n\n' +
             'To install this version:\n\n' +
             '```bash\n' +
@@ -105,4 +133,6 @@ jobs:
             });
           }
       env:
-        GITHUB_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        STORYBOOK_BUCKET: ${{ secrets.STORYBOOK_BUCKET }}
+        VERSION: ${{ env.VERSION }}
