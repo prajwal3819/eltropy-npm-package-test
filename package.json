@@ -1,5 +1,5 @@
 {
-  "name": "@eltropy/design-system",
+  "name": "@prajwal3819/eltropy-npm-package-test",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -77,10 +77,10 @@
     "vitest": "^4.0.16"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "@prajwal3819:registry": "https://npm.pkg.github.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/eltropy/elt-design-system.git"
+    "url": "https://github.com/prajwal3819/eltropy-npm-package-test.git"
   }
 }
