@@ -1,4 +1,4 @@
-name: PROD Workflow
+name: PROD Master Workflow
 
 on:
   release:
@@ -19,31 +19,30 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Use Node.js 20
+    - name: Use Node.js 22
       uses: actions/setup-node@v3
       with:
-        node-version: 20
+        node-version: 22
         registry-url: 'https://npm.pkg.github.com'
-        scope: '@prajwal3819'
+        scope: ${{ github.repository }}
+  
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
     
-    - name: Install dependencies
+    - name: Install node dependencies
       run: npm install
       env:
         NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
     
     - name: Build package
-      run: npm run build
+      run: npm run build:lib
     
     - name: Build Storybook
       run: npm run build-storybook
-    
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-west-1
-    
     
     - name: Get latest tag and bump patch
       id: version
@@ -55,8 +54,6 @@ jobs:
         FINAL_VERSION=${TAG#v}
         echo "VERSION=$FINAL_VERSION" >> $GITHUB_ENV
         echo "Publishing version: $FINAL_VERSION"
-
-
     
     - name: Publish to GitHub Packages
       run: |
@@ -64,9 +61,9 @@ jobs:
         npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
     
     - name: Upload Storybook to S3
       run: |
-        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/${{ github.event.release.tag_name }}/  --delete
-        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/ --delete 
+        aws s3 sync storybook-static/ s3://${{ vars.STORYBOOK_BUCKET }}/storybook/${{ github.event.release.tag_name }}/
+        aws s3 rm s3://${{ vars.STORYBOOK_BUCKET }}/storybook/latest/ --recursive
+        aws s3 sync storybook-static/ s3://${{ vars.STORYBOOK_BUCKET }}/storybook/latest/

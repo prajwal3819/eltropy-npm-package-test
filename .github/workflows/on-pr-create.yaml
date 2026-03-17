@@ -16,36 +16,33 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Use Node.js 20
+    - name: Use Node.js 22
       uses: actions/setup-node@v3
       with:
-        node-version: 20
+        node-version: 22
         registry-url: 'https://npm.pkg.github.com'
-        scope: '@prajwal3819'
-    
-    - name: Install dependencies
-      run: npm install
-      env:
-        NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
-    
-    - name: Build package
-      run: npm run build
-    
-    - name: Build Storybook
-      run: npm run build-storybook
-    
+        scope: ${{ github.repository }}
+
+
     - name: Configure AWS Credentials
       if: github.event_name == 'pull_request'
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-west-1
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Install dependencies
+      run: npm install
+      env:
+        NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
     
-    - name: Get PR number
-      if: github.event_name == 'pull_request'
-      id: pr
-      run: echo "pr_number=${{ github.event.number }}" >> $GITHUB_OUTPUT
+    - name: Build package
+      run: npm run build:lib
+    
+    - name: Build Storybook
+      run: npm run build-storybook
+    
     
     - name: Get latest tag and bump patch
       id: version
@@ -62,7 +59,6 @@ jobs:
 
         PATCH=$((PATCH + 1))
 
-        NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
         NEXT_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
         PR_NUMBER=${{ github.event.pull_request.number || 0 }}
@@ -71,13 +67,11 @@ jobs:
 
         FINAL_VERSION="${NEXT_VERSION}-pre-${PR_NUMBER}.${SHORT_SHA}"
 
-        echo "NEXT_TAG=$NEXT_TAG" >> $GITHUB_ENV
         echo "VERSION=$FINAL_VERSION" >> $GITHUB_ENV
 
         echo "Publishing version: $FINAL_VERSION"
 
 
-    
     - name: Publish to GitHub Packages
       if: github.event_name == 'pull_request'
       run: |
@@ -85,12 +79,11 @@ jobs:
         npm publish --tag pre
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-
     
     - name: Upload Storybook to S3
       if: github.event_name == 'pull_request'
       run: |
-        aws s3 sync storybook-static/ s3://${{ secrets.STORYBOOK_BUCKET }}/storybook/${{ env.VERSION }}/ --delete
+        aws s3 sync storybook-static/ s3://${{ vars.STORYBOOK_BUCKET }}/storybook/${{ env.VERSION }}/
       env:
         VERSION: ${{ env.VERSION }}
     
@@ -134,5 +127,5 @@ jobs:
           }
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        STORYBOOK_BUCKET: ${{ secrets.STORYBOOK_BUCKET }}
+        STORYBOOK_BUCKET: ${{ vars.STORYBOOK_BUCKET }}
         VERSION: ${{ env.VERSION }}
