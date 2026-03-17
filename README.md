@@ -1,67 +1,135 @@
-# UI Component Library
+# Eltropy Design System
 
-A modern React component library built with Storybook and published to GitHub Packages.
+A modern React component library built with Chakra UI v3, TypeScript, and Vite. This is a complete rewrite of the Radiant UI library with updated design tokens and components.
 
 ## Features
 
-- 🎨 Beautiful, accessible components
-- 📚 Interactive documentation with Storybook
-- 🚀 Built with modern React (v18+)
-- 🧪 Full test coverage
-- 📦 Published as an npm package
+- 🎨 **Modern Design Tokens** - Complete design system with colors, typography, spacing, and more
+- ⚡ **Chakra UI v3** - Built on the latest Chakra UI with improved performance
+- 📦 **TypeScript** - Full type safety and IntelliSense support
+- 📚 **Storybook** - Interactive component documentation
+- 🔧 **Vite** - Fast development and optimized builds
+- 📖 **Private NPM** - Published to GitHub Packages
 
 ## Installation
 
 ```bash
-# Using npm
-npm install @prajwal3819/eltropy-npm-package-test
+npm install @eltropy/design-system
+```
 
-# Using yarn
-yarn add @prajwal3819/eltropy-npm-package-test
+### GitHub Package Registry Setup
+
+Add the following to your `.npmrc` file:
+
+```
+@eltropy:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
 ## Usage
 
-```jsx
-import { Button, Card, Badge } from '@prajwal3819/eltropy-npm-package-test';
+### Basic Setup
+
+```tsx
+import { ChakraProvider } from '@chakra-ui/react';
+import { theme } from '@eltropy/design-system';
 
 function App() {
   return (
-    <Card title="Welcome">
-      <Button variant="primary" onClick={() => console.log('Clicked!')}>
-        Click me
-      </Button>
-      <Badge text="New" color="blue" />
-    </Card>
+    <ChakraProvider value={theme}>
+      {/* Your app */}
+    </ChakraProvider>
+  );
+}
+```
+
+### Using Components
+
+```tsx
+import { Button } from '@eltropy/design-system';
+
+function MyComponent() {
+  return (
+    <Button colorScheme="green" variant="solid">
+      Click me
+    </Button>
   );
 }
 ```
 
 ## Development
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start Storybook:
-   ```bash
-   npm run storybook
-   ```
-4. Build the library:
-   ```bash
-   npm run build
-   ```
-
-## Testing
+### Install Dependencies
 
 ```bash
-npm test
+npm install
 ```
+
+### Run Development Server
+
+```bash
+npm run dev
+```
+
+### Run Storybook
+
+```bash
+npm run storybook
+```
+
+### Build Library
+
+```bash
+npm run build:lib
+```
+
+### Build Storybook
+
+```bash
+npm run build-storybook
+```
+
+## Project Structure
+
+```
+src/
+├── components/     # React components
+├── theme/          # Design tokens and theme configuration
+│   ├── tokens/     # Raw design tokens (colors, typography, spacing)
+│   ├── foundations/# Chakra UI foundations
+│   └── theme.ts    # Main theme configuration
+├── hooks/          # Custom React hooks
+├── utils/          # Utility functions
+├── models/         # TypeScript types and interfaces
+└── assets/         # Static assets
+```
+
+## Design Tokens
+
+The library includes comprehensive design tokens:
+
+- **Colors**: Green, Blue, Gray, Navy Gray, Violet, Yellow, Success Green, Red, Orange
+- **Typography**: ABC Diatype font family with various sizes and weights
+- **Spacing**: Consistent spacing scale from 0 to 80px
+- **Radii**: Border radius tokens from 0 to 48px
 
 ## Publishing
 
-New versions are automatically published when tags are pushed to the `main` branch. The version is determined by the git tag.
+The package is automatically published to GitHub Packages when a new release is created.
+
+### Manual Publish
+
+```bash
+npm run build:lib
+npm publish
+```
+
+## Contributing
+
+1. Create a new branch for your feature
+2. Make your changes
+3. Add Storybook stories for new components
+4. Submit a pull request
 
 ## License
 
