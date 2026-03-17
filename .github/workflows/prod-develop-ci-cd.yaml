@@ -1,7 +1,9 @@
 name: PR Workflow
 
 on:
-  pull_request: 
+  push:
+    branches:
+      - develop
 
 permissions:
   contents: read
