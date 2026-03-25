@@ -1,0 +1,81 @@
+name: Merge Develop into Master (backend)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Name of the release'
+        required: true
+      major_deployment:
+        description: 'Type yes if the deployment is major (kind of refactor or rewrite or upgrade)'
+        required: true
+        default: 'no' 
+
+permissions:
+  contents: write
+
+jobs:
+  merge-develop-to-master:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout develop branch
+      uses: actions/checkout@v3
+      with:
+        ref: develop
+        fetch-depth: 0
+
+    - name: Get latest version and bump it
+      id: version
+      run: |
+
+        MODIFIED_APPS=$(git diff --dirstat=files,0 develop..origin/master |  awk '{print $2}' | cut -d "/" -f 1,2  | uniq | egrep 'golang|java')
+
+        FILE='VERSION'
+        echo $MODIFIED_APPS
+
+        for app in $MODIFIED_APPS; do
+            echo "Started version update for $app"
+            if [ -f "$app/$FILE" ]; then
+                VERSION_FILE=$app/$FILE
+            elif [ -f "$app/internal/$FILE" ]; then
+                VERSION_FILE=$app/internal/$FILE
+            else
+                echo "Skipping for $app no file found"
+                continue
+            fi
+
+            if [ -f $VERSION_FILE ]; then
+                CURRENT_VERSION=$(cat $VERSION_FILE)
+                IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+                if [ "${{ github.event.inputs.major_deployment }}" = "yes" ]; then
+                    MINOR=$((MINOR + 1))
+                    PATCH=0
+                else
+                    PATCH=$((PATCH + 1))
+                fi
+                NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+                echo "Modified version for $app from $CURRENT_VERSION to $NEW_VERSION"
+                echo $NEW_VERSION > $VERSION_FILE
+            fi
+        done
+    - name: Commit and push changes to develop
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        git add .
+        git commit -m "chore: bump versions for ${{github.event.inputs.release}}" || echo "No changes to commit"
+        git push origin develop
+
+    - name: Checkout master branch
+      uses: actions/checkout@v3
+      with:
+        ref: master
+        fetch-depth: 0
+
+    - name: Merge develop into master
+      run: |
+        git merge origin/develop
+        git push origin master
