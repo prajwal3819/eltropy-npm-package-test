@@ -7,7 +7,7 @@ on:
         description: 'Name of the release'
         required: true
       major_deployment:
-        description: 'Type yes if the deployment is major'
+        description: 'Type yes if the deployment is major kind of refactor'
         required: true
         default: 'no' 
 
@@ -55,7 +55,7 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
-        git add README.md
+        git add $FILE
         git commit -m "chore: bump version to $VERSION" for ${{github.event.inputs.release}} || echo "No changes to commit"
         git push origin develop
 
