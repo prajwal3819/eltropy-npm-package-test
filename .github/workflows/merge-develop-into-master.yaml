@@ -50,13 +50,13 @@ jobs:
         sed -i "s/# Release Version : \"$CURRENT_VERSION\"/# Release Version : \"$NEW_VERSION\"/g" $FILE
 
 
-    - name: Commit and push changes to master
+    - name: Commit and push changes to develop
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
         git add $FILE
-        git commit -m "chore: bump version to $VERSION" for ${{github.event.inputs.release}} || echo "No changes to commit"
+        git commit -m "chore: bump version to $VERSION" for ${{github.event.inputs.release}}" || echo "No changes to commit"
         git push origin develop
 
     - name: Checkout master branch
