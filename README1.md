@@ -1,5 +1,5 @@
 # goremon
-# Release Version : "9.10.33"
+# Release Version : "9.10.34"
 Code "GO-RE-MON" is derived from Golang, ReactJS and MongoDB. 
 
 ## Packages
