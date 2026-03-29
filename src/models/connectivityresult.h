@@ -11,6 +11,7 @@ public:
         Success,
         Failed,
         Timeout,
+        ConnectionRefused,
         InProgress
     };
 

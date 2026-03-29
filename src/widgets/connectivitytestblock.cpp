@@ -115,7 +115,7 @@ void ConnectivityTestBlock::setProgress(int current, int total)
     m_progressBar->setMaximum(total);
     m_progressBar->setValue(current);
     m_progressBar->setFormat(QString("%1/%2").arg(current).arg(total));
-    m_progressBar->setVisible(current > 0 && current < total);
+    m_progressBar->setVisible(current > 0 && current <= total);
 }
 
 void ConnectivityTestBlock::setDetails(const QString &details)
@@ -156,6 +156,12 @@ void ConnectivityTestBlock::updateStatusDisplay()
             m_statusIndicator->setStyleSheet("background-color: #FFA726; border-radius: 12px;");
             m_statusLabel->setText("⚠️ Some tests failed");
             m_statusLabel->setStyleSheet("color: #F57C00; font-size: 10pt; font-weight: bold;");
+            m_testButton->setEnabled(true);
+            break;
+        case ConnectionRefused:
+            m_statusIndicator->setStyleSheet("background-color: #FF9800; border-radius: 12px;");
+            m_statusLabel->setText("🚫 Connection refused");
+            m_statusLabel->setStyleSheet("color: #E65100; font-size: 10pt; font-weight: bold;");
             m_testButton->setEnabled(true);
             break;
         case AllFailed:

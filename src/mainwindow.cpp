@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "models/environmentconfig.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -13,24 +14,29 @@
 #include <QDateTime>
 #include <QTabWidget>
 #include <QStatusBar>
+#include <QRegularExpression>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), 
       m_currentTestIndex(0), 
       m_testingAll(false),
       m_testingAllSip(false),
-      m_currentSipTestIndex(0)
+      m_currentSipTestIndex(0),
+      m_activeVoipChecker(nullptr)
 {
     // Hardcoded SIP credentials
     m_sipUsername = "7001";
     m_sipPassword = "7001";
-    m_sipDomain = "fusionpbx-api.eltropy.com";
-    m_sipProxy = "voip.eltropy.com";
+    m_sipDomain = EnvironmentConfig::instance().getSipDomain();
+    m_sipProxy = EnvironmentConfig::instance().getSipEndpoint();
     
     m_multiPingChecker = new MultiPingChecker(this);
     m_sipManager = new SipRegistrationManager(this);
     m_networkInfoManager = new NetworkInfoManager(this);
     m_callManager = new SipCallManager(this);
+    
+    m_totalTestsToRun = 0;
+    m_completedTests = 0;
     
     m_sipExpiryTimer = new QTimer(this);
     m_sipExpiryTimer->setInterval(1000);
@@ -39,7 +45,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupUI();
     setupConnections();
     
-    setWindowTitle("SIP Connectivity Tester - Eltropy VoIP V1.0.1");
+    setWindowTitle("SIP Connectivity Tester - Eltropy VoIP V1.0.0");
     resize(1000, 700);
 }
 
@@ -81,6 +87,26 @@ void MainWindow::setupUI()
     headerLayout->addWidget(titleLabel);
     headerLayout->addWidget(subtitleLabel);
     
+    QHBoxLayout *envLayout = new QHBoxLayout();
+    QLabel *envLabel = new QLabel("VOIP Environment:");
+    envLabel->setStyleSheet("color: white; font-size: 14pt; font-weight: bold; background-color: transparent;");
+    envLayout->addWidget(envLabel);
+    
+    m_prodRadio = new QRadioButton("PROD");
+    m_prodRadio->setStyleSheet("color: white; font-size: 15pt; font-weight: bold; background-color: transparent;");
+    m_prodRadio->setChecked(true);
+    connect(m_prodRadio, &QRadioButton::clicked, this, &MainWindow::onEnvironmentChanged);
+    envLayout->addWidget(m_prodRadio);
+    
+    m_uatRadio = new QRadioButton("UAT");
+    m_uatRadio->setStyleSheet("color: white; font-size: 15pt; font-weight: bold; background-color: transparent;");
+    connect(m_uatRadio, &QRadioButton::clicked, this, &MainWindow::onEnvironmentChanged);
+    envLayout->addWidget(m_uatRadio);
+    
+    envLayout->addStretch();
+    
+    headerLayout->addLayout(envLayout);
+    
     mainLayout->addWidget(headerWidget);
     
     // Tab Widget below header
@@ -99,6 +125,8 @@ void MainWindow::setupUI()
     connLayout->setSpacing(15);
     connLayout->setContentsMargins(20, 20, 20, 20);
     
+    QHBoxLayout *connHeaderLayout = new QHBoxLayout();
+    
     QPushButton *testAllButton = new QPushButton("🚀 Test All Connectivity", this);
     testAllButton->setStyleSheet("QPushButton { "
                                  "background-color: #3498DB; "
@@ -112,45 +140,52 @@ void MainWindow::setupUI()
                                  "QPushButton:disabled { background-color: #BDC3C7; }");
     testAllButton->setFixedHeight(50);
     connect(testAllButton, &QPushButton::clicked, this, &MainWindow::onTestAllClicked);
-    connLayout->addWidget(testAllButton);
+    connHeaderLayout->addWidget(testAllButton);
+    
+    QPushButton *cancelAllButton = new QPushButton("🛑 Cancel All Tests", this);
+    cancelAllButton->setStyleSheet("QPushButton { "
+                                   "background-color: #E74C3C; "
+                                   "color: white; "
+                                   "font-weight: bold; "
+                                   "padding: 10px; "
+                                   "border-radius: 5px; "
+                                   "font-size: 14pt; "
+                                   "}"
+                                   "QPushButton:hover { background-color: #C0392B; }");
+    cancelAllButton->setFixedHeight(50);
+    connect(cancelAllButton, &QPushButton::clicked, this, &MainWindow::onCancelAllTestsClicked);
+    connHeaderLayout->addWidget(cancelAllButton);
+    
+    connHeaderLayout->addSpacing(20);
+    
+    QLabel *attemptsLabel = new QLabel("Test Attempts:");
+    attemptsLabel->setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 12pt;");
+    connHeaderLayout->addWidget(attemptsLabel);
+    
+    m_testAttempts = new QSpinBox();
+    m_testAttempts->setRange(1, 20);
+    m_testAttempts->setValue(5);
+    m_testAttempts->setStyleSheet("padding: 8px; border: 2px solid #bdc3c7; border-radius: 4px; "
+                                  "background: white; color: #2c3e50; font-size: 12pt;");
+    m_testAttempts->setFixedWidth(80);
+    connHeaderLayout->addWidget(m_testAttempts);
+    
+    connHeaderLayout->addStretch();
+    connLayout->addLayout(connHeaderLayout);
     
     QScrollArea *scrollArea = new QScrollArea();
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
     scrollArea->setStyleSheet("QScrollArea { background-color: #f5f7fa; border: none; }");
     
-    QWidget *scrollContent = new QWidget();
-    QGridLayout *gridLayout = new QGridLayout(scrollContent);
-    gridLayout->setSpacing(15);
-    gridLayout->setContentsMargins(10, 10, 10, 10);
+    m_connectivityScrollContent = new QWidget();
+    m_connectivityGridLayout = new QGridLayout(m_connectivityScrollContent);
+    m_connectivityGridLayout->setSpacing(15);
+    m_connectivityGridLayout->setContentsMargins(10, 10, 10, 10);
     
-    QString host = "voip.eltropy.com";
+    rebuildConnectivityBlocks();
     
-    int row = 0, col = 0;
-    auto createBlock = [&](const QString &emoji, const QString &title, const QString &description, ConnectivityResult::Protocol protocol, int port) {
-        ConnectivityTestBlock *block = new ConnectivityTestBlock(emoji, title, description, protocol, host, port, scrollContent);
-        QString key = getBlockKey(protocol, host, port);
-        m_testBlocks[key] = block;
-        gridLayout->addWidget(block, row, col);
-        col++;
-        if (col >= 2) {
-            col = 0;
-            row++;
-        }
-        return block;
-    };
-    
-    createBlock("🔌", "TCP Port 5060", "Standard SIP signaling to voip.eltropy.com over TCP", ConnectivityResult::TCP, 5060);
-    createBlock("📡", "UDP Port 5060", "Standard SIP signaling to voip.eltropy.com over UDP", ConnectivityResult::UDP, 5060);
-    createBlock("🔌", "TCP Port 5080", "Alternative SIP signaling to voip.eltropy.com over TCP", ConnectivityResult::TCP, 5080);
-    createBlock("📡", "UDP Port 5080", "Alternative SIP signaling to voip.eltropy.com over UDP", ConnectivityResult::UDP, 5080);
-    createBlock("🌐", "WSS Port 443", "WebSocket Secure for web-based calls to voip.eltropy.com", ConnectivityResult::WSS, 443);
-    createBlock("🎙️", "RTP UDP Ports", "Real-time audio/video streaming ", ConnectivityResult::RTP, 10000);
-    
-    if (col != 0) {
-        gridLayout->setColumnStretch(col, 1);
-    }
-    scrollArea->setWidget(scrollContent);
+    scrollArea->setWidget(m_connectivityScrollContent);
     connLayout->addWidget(scrollArea);
     tabWidget->addTab(connectivityTab, "🔌 Connectivity Tests");
     
@@ -199,18 +234,33 @@ void MainWindow::setupUI()
     // Test All Button and Timeout Setting
     QHBoxLayout *sipHeaderLayout = new QHBoxLayout();
     
-    QPushButton *sipTestAllButton = new QPushButton("� Test All SIP Registration", this);
+    QPushButton *sipTestAllButton = new QPushButton("🧪 Test All SIP Registration", this);
     sipTestAllButton->setStyleSheet("QPushButton { "
                                     "background-color: #3498DB; "
                                     "color: white; "
                                     "font-weight: bold; "
                                     "padding: 10px; "
                                     "border-radius: 5px; "
-                                    "border: none; "
+                                    "font-size: 12pt; "
                                     "}"
                                     "QPushButton:hover { background-color: #2980B9; }");
+    sipTestAllButton->setFixedHeight(40);
     connect(sipTestAllButton, &QPushButton::clicked, this, &MainWindow::onSipTestAllClicked);
     sipHeaderLayout->addWidget(sipTestAllButton);
+    
+    QPushButton *sipUnregisterAllButton = new QPushButton("🚫 Unregister All", this);
+    sipUnregisterAllButton->setStyleSheet("QPushButton { "
+                                         "background-color: #E74C3C; "
+                                         "color: white; "
+                                         "font-weight: bold; "
+                                         "padding: 10px; "
+                                         "border-radius: 5px; "
+                                         "font-size: 12pt; "
+                                         "}"
+                                         "QPushButton:hover { background-color: #C0392B; }");
+    sipUnregisterAllButton->setFixedHeight(40);
+    connect(sipUnregisterAllButton, &QPushButton::clicked, this, &MainWindow::onSipUnregisterAllClicked);
+    sipHeaderLayout->addWidget(sipUnregisterAllButton);
     
     sipHeaderLayout->addSpacing(20);
     
@@ -232,48 +282,17 @@ void MainWindow::setupUI()
     // Scroll area for registration blocks
     QScrollArea *sipScrollArea = new QScrollArea();
     sipScrollArea->setWidgetResizable(true);
+    sipScrollArea->setFrameShape(QFrame::NoFrame);
     sipScrollArea->setStyleSheet("QScrollArea { border: none; background: #f5f7fa; }");
     
-    QWidget *sipScrollWidget = new QWidget();
-    QVBoxLayout *sipBlocksLayout = new QVBoxLayout(sipScrollWidget);
-    sipBlocksLayout->setSpacing(10);
-    sipBlocksLayout->setContentsMargins(0, 0, 0, 0);
+    m_sipScrollWidget = new QWidget();
+    m_sipBlocksLayout = new QGridLayout(m_sipScrollWidget);
+    m_sipBlocksLayout->setSpacing(15);
+    m_sipBlocksLayout->setContentsMargins(10, 10, 10, 10);
     
-    // Create registration blocks for each transport/port combination
-    struct SipTestConfig {
-        QString transport;
-        int port;
-        SipTransportType type;
-    };
+    rebuildSipRegistrationBlocks();
     
-    QList<SipTestConfig> sipConfigs = {
-        {"TCP", 5060, SipTransportType::TCP},
-        {"UDP", 5060, SipTransportType::UDP},
-        {"TCP", 5080, SipTransportType::TCP},
-        {"UDP", 5080, SipTransportType::UDP},
-        {"TLS", 5061, SipTransportType::TLS},
-        {"WSS", 443, SipTransportType::WSS}
-    };
-    
-    for (const auto &config : sipConfigs) {
-        SipRegistrationBlock *block = new SipRegistrationBlock(
-            config.transport,
-            m_sipProxy,
-            config.port,
-            config.type,
-            this
-        );
-        
-        QString key = getSipBlockKey(config.type, m_sipProxy, config.port);
-        m_sipBlocks[key] = block;
-        
-        connect(block, &SipRegistrationBlock::testRequested,
-                this, &MainWindow::onSipBlockRequested);
-        
-        sipBlocksLayout->addWidget(block);
-    }
-    
-    sipScrollArea->setWidget(sipScrollWidget);
+    sipScrollArea->setWidget(m_sipScrollWidget);
     sipRegLayout->addWidget(sipScrollArea);
     
     // Create network info tab
@@ -394,6 +413,9 @@ void MainWindow::setupConnections()
     connect(m_callManager, &SipCallManager::registrationStatusChanged, this, &MainWindow::onCallRegistrationStatusChanged);
     connect(m_callManager, &SipCallManager::callStateChanged, this, &MainWindow::onCallStateChanged);
     connect(m_callManager, &SipCallManager::sipPacketLogged, this, &MainWindow::onSipPacketLogged);
+    connect(m_callManager, &SipCallManager::rtpStatisticsUpdated, this, [this](const QString &stats) {
+        addLog(stats, "INFO");
+    });
     connect(m_callManager, &SipCallManager::errorOccurred,
             this, [this](const QString &error) {
                 addLog("⚠️ " + error, "ERROR");
@@ -402,22 +424,93 @@ void MainWindow::setupConnections()
 
 void MainWindow::onTestAllClicked()
 {
-    m_testQueue.clear();
-    m_currentTestIndex = 0;
+    // Clean up any existing parallel checkers
+    for (MultiPingChecker *checker : m_activeCheckers.values()) {
+        checker->cancel();
+        checker->deleteLater();
+    }
+    m_activeCheckers.clear();
+    
     m_testingAll = true;
+    m_totalTestsToRun = m_testBlocks.size();
+    m_completedTests = 0;
     
     addLog("========================================", "INFO");
-    addLog("Starting comprehensive connectivity test suite", "TEST");
-    addLog(QString("Total tests to run: %1").arg(m_testBlocks.size()), "INFO");
+    addLog("Starting comprehensive connectivity test suite (PARALLEL MODE)", "TEST");
+    addLog(QString("Total tests to run: %1").arg(m_totalTestsToRun), "INFO");
     
+    statusBar()->showMessage(QString("Running %1 tests in parallel...").arg(m_totalTestsToRun));
+    
+    // Start all tests in parallel
     for (ConnectivityTestBlock *block : m_testBlocks.values()) {
         block->reset();
-        m_testQueue.append(qMakePair(block->protocol(), 
-                                     qMakePair(block->host(), block->port())));
+        block->setStatus(ConnectivityTestBlock::Testing);
+        
+        QString key = getBlockKey(block->protocol(), block->host(), block->port());
+        
+        // Create a new checker for this test
+        MultiPingChecker *checker = new MultiPingChecker(this);
+        m_activeCheckers[key] = checker;
+        
+        // Connect signals for this specific checker
+        connect(checker, &MultiPingChecker::progressUpdate, this, [this, key](int current, int total) {
+            ConnectivityTestBlock *block = m_testBlocks.value(key);
+            if (block) {
+                block->setProgress(current, total);
+            }
+        });
+        
+        connect(checker, &MultiPingChecker::testCompleted, this, [this, key](int successCount, int totalAttempts, const QList<ConnectivityResult> &results) {
+            onParallelTestCompleted(key, successCount, totalAttempts, results);
+        });
+        
+        // Start the test
+        QString protocolName = (block->protocol() == ConnectivityResult::TCP ? "TCP" :
+                               block->protocol() == ConnectivityResult::UDP ? "UDP" :
+                               block->protocol() == ConnectivityResult::TLS ? "TLS" :
+                               block->protocol() == ConnectivityResult::WSS ? "WSS" : "RTP");
+        
+        int attempts = m_testAttempts->value();
+        addLog(QString("Starting %1 %2:%3 (%4 attempts)").arg(protocolName).arg(block->host()).arg(block->port()).arg(attempts), "TEST");
+        checker->startTest(block->protocol(), block->host(), block->port(), attempts, 5000);
+    }
+}
+
+void MainWindow::onCancelAllTestsClicked()
+{
+    addLog("========================================", "INFO");
+    addLog("Cancelling all connectivity tests", "WARNING");
+    
+    // Cancel all active parallel checkers
+    int cancelledCount = m_activeCheckers.size();
+    for (MultiPingChecker *checker : m_activeCheckers.values()) {
+        if (checker) {
+            checker->cancel();
+            checker->deleteLater();
+        }
+    }
+    m_activeCheckers.clear();
+    
+    // Reset all test blocks to idle state
+    for (ConnectivityTestBlock *block : m_testBlocks.values()) {
+        if (block) {
+            block->setStatus(ConnectivityTestBlock::NotTested);
+            block->setDetails("Test cancelled");
+        }
     }
     
-    statusBar()->showMessage("Starting all tests...");
-    testNextBlock();
+    // Reset test state
+    m_testingAll = false;
+    m_totalTestsToRun = 0;
+    m_completedTests = 0;
+    
+    if (cancelledCount > 0) {
+        addLog(QString("Cancelled %1 running test(s)").arg(cancelledCount), "WARNING");
+        statusBar()->showMessage(QString("Cancelled %1 test(s)").arg(cancelledCount));
+    } else {
+        addLog("No tests were running", "INFO");
+        statusBar()->showMessage("No tests to cancel");
+    }
 }
 
 void MainWindow::onTestBlockRequested(ConnectivityResult::Protocol protocol, 
@@ -440,8 +533,9 @@ void MainWindow::onTestBlockRequested(ConnectivityResult::Protocol protocol,
     if (block) {
         block->reset();
         block->setStatus(ConnectivityTestBlock::Testing);
-        statusBar()->showMessage(QString("Testing %1:%2...").arg(host).arg(port));
-        m_multiPingChecker->startTest(protocol, host, port, 5, 5000);
+        int attempts = m_testAttempts->value();
+        statusBar()->showMessage(QString("Testing %1:%2 (%3 attempts)...").arg(host).arg(port).arg(attempts));
+        m_multiPingChecker->startTest(protocol, host, port, attempts, 5000);
     }
 }
 
@@ -480,10 +574,41 @@ void MainWindow::onMultiPingCompleted(int successCount, int totalAttempts,
         logLevel = "WARNING";
         addLog(QString("Test partially successful: %1/%2 attempts passed").arg(successCount).arg(totalAttempts), logLevel);
     } else {
-        status = ConnectivityTestBlock::AllFailed;
-        details = QString("✗ All %1 attempts failed").arg(totalAttempts);
-        logLevel = "ERROR";
-        addLog(QString("Test failed: 0/%1 attempts successful").arg(totalAttempts), logLevel);
+        // Check if all failures are ConnectionRefused
+        bool allConnectionRefused = true;
+        bool hasTimeout = false;
+        for (const ConnectivityResult &result : results) {
+            if (result.status() == ConnectivityResult::Timeout) {
+                hasTimeout = true;
+                allConnectionRefused = false;
+                break;
+            } else if (result.status() != ConnectivityResult::ConnectionRefused) {
+                allConnectionRefused = false;
+            }
+        }
+        
+        if (allConnectionRefused && !results.isEmpty()) {
+            status = ConnectivityTestBlock::ConnectionRefused;
+            details = QString("🚫 Connection actively rejected\n"
+                            "\nPossible causes:\n"
+                            "• Server port is not listening\n");
+                            // "• Firewall is actively blocking the connection");
+            logLevel = "WARNING";
+            addLog(QString("Test failed: Connection refused on all %1 attempts - port actively rejected").arg(totalAttempts), logLevel);
+        } else if (hasTimeout) {
+            status = ConnectivityTestBlock::AllFailed;
+            details = QString("⏱️ Connection timeout - no response received\n"
+                            "Most likely cause:\n"
+                            "• Firewall is silently dropping packets\n"
+                            "• Network routing issue or host unreachable");
+            logLevel = "ERROR";
+            addLog(QString("Test failed: Connection timeout on all attempts - likely firewall blocking"), logLevel);
+        } else {
+            status = ConnectivityTestBlock::AllFailed;
+            details = QString("✗ All %1 attempts failed").arg(totalAttempts);
+            logLevel = "ERROR";
+            addLog(QString("Test failed: 0/%1 attempts successful").arg(totalAttempts), logLevel);
+        }
     }
     
     if (!results.isEmpty()) {
@@ -537,7 +662,115 @@ void MainWindow::onMultiPingCompleted(int successCount, int totalAttempts,
     }
 }
 
+void MainWindow::onParallelTestCompleted(const QString &key, int successCount, int totalAttempts, const QList<ConnectivityResult> &results)
+{
+    ConnectivityTestBlock::TestStatus status;
+    QString details;
+    QString logLevel;
+    
+    if (successCount == totalAttempts) {
+        status = ConnectivityTestBlock::AllSuccess;
+        details = QString("✓ All %1 attempts successful").arg(totalAttempts);
+        logLevel = "SUCCESS";
+        addLog(QString("Test passed: %1/%2 attempts successful").arg(successCount).arg(totalAttempts), logLevel);
+    } else if (successCount > 0) {
+        status = ConnectivityTestBlock::PartialSuccess;
+        details = QString("⚠ %1/%2 attempts successful").arg(successCount).arg(totalAttempts);
+        logLevel = "WARNING";
+        addLog(QString("Test partially successful: %1/%2 attempts passed").arg(successCount).arg(totalAttempts), logLevel);
+    } else {
+        // Check if all failures are ConnectionRefused
+        bool allConnectionRefused = true;
+        bool hasTimeout = false;
+        for (const ConnectivityResult &result : results) {
+            if (result.status() == ConnectivityResult::Timeout) {
+                hasTimeout = true;
+                allConnectionRefused = false;
+                break;
+            } else if (result.status() != ConnectivityResult::ConnectionRefused) {
+                allConnectionRefused = false;
+            }
+        }
+        
+        if (allConnectionRefused && !results.isEmpty()) {
+            status = ConnectivityTestBlock::ConnectionRefused;
+            details = QString("🚫 Connection actively rejected\n"
+                            "\nPossible causes:\n"
+                            "• Server port is not listening\n");
+                            // "• Firewall is actively blocking the connection");
+            logLevel = "WARNING";
+            addLog(QString("Test failed: Connection refused on all %1 attempts - port actively rejected").arg(totalAttempts), logLevel);
+        } else if (hasTimeout) {
+            status = ConnectivityTestBlock::AllFailed;
+            details = QString("⏱️ Connection timeout - no response received\n"
+                            "Most likely cause:\n"
+                            "• Firewall is silently dropping packets\n"
+                            "• Network routing issue or host unreachable");
+            logLevel = "ERROR";
+            addLog(QString("Test failed: Connection timeout on all attempts - likely firewall blocking"), logLevel);
+        } else {
+            status = ConnectivityTestBlock::AllFailed;
+            details = QString("✗ All %1 attempts failed").arg(totalAttempts);
+            logLevel = "ERROR";
+            addLog(QString("Test failed: 0/%1 attempts successful").arg(totalAttempts), logLevel);
+        }
+    }
+    
+    if (!results.isEmpty()) {
+        qint64 totalTime = 0;
+        int validTimes = 0;
+        for (const ConnectivityResult &result : results) {
+            if (result.status() == ConnectivityResult::Success && result.responseTime() > 0) {
+                totalTime += result.responseTime();
+                validTimes++;
+            }
+        }
+        if (validTimes > 0) {
+            qint64 avgTime = totalTime / validTimes;
+            details += QString(" | Avg: %1ms").arg(avgTime);
+            addLog(QString("Average response time: %1ms").arg(avgTime), "INFO");
+        }
+        
+        if (successCount < totalAttempts && successCount > 0) {
+            details += "\nSome attempts failed - possible network instability";
+            addLog("Network instability detected - some attempts failed", "WARNING");
+        }
+    }
+    
+    // Update the test block
+    ConnectivityTestBlock *block = m_testBlocks.value(key);
+    if (block) {
+        block->setStatus(status);
+        block->setDetails(details);
+    }
+    
+    // Clean up the checker for this test
+    MultiPingChecker *checker = m_activeCheckers.value(key);
+    if (checker) {
+        m_activeCheckers.remove(key);
+        checker->deleteLater();
+    }
+    
+    // Track completion
+    m_completedTests++;
+    statusBar()->showMessage(QString("Tests completed: %1/%2").arg(m_completedTests).arg(m_totalTestsToRun));
+    
+    // Check if all tests are done
+    if (m_completedTests >= m_totalTestsToRun) {
+        addLog("========================================", "INFO");
+        addLog("All connectivity tests completed!", "SUCCESS");
+        statusBar()->showMessage("All tests completed!");
+        m_testingAll = false;
+        m_activeCheckers.clear();
+    }
+}
+
 void MainWindow::onMultiPingAttemptCompleted(const ConnectivityResult &result)
+{
+    Q_UNUSED(result);
+}
+
+void MainWindow::onConnectivityChecked(const ConnectivityResult &result)
 {
     Q_UNUSED(result);
 }
@@ -632,22 +865,86 @@ void MainWindow::addLog(const QString &message, const QString &level)
 // SIP Registration slot implementations
 void MainWindow::onSipTestAllClicked()
 {
-    m_sipTestQueue.clear();
-    m_currentSipTestIndex = 0;
     m_testingAllSip = true;
     
     addLog("========================================", "INFO");
-    addLog("Starting comprehensive SIP registration test suite", "TEST");
+    addLog("Starting comprehensive SIP registration test suite (PARALLEL MODE)", "TEST");
     addLog(QString("Total tests to run: %1").arg(m_sipBlocks.size()), "INFO");
     
+    statusBar()->showMessage(QString("Starting %1 SIP registrations in parallel...").arg(m_sipBlocks.size()));
+    
+    // Start all registrations in parallel
     for (SipRegistrationBlock *block : m_sipBlocks.values()) {
-        block->reset();
-        m_sipTestQueue.append(qMakePair(block->transportType(),
-                                        qMakePair(block->host(), block->port())));
+        // Don't reset - just update status directly to avoid showing "Not tested"
+        block->setStatus(SipRegistrationBlock::Registering);
+        block->setMessage("⏳ Registering...");
+        block->setExpiryTime(0);
+        
+        QString transportName = (block->transportType() == SipTransportType::TCP ? "TCP" :
+                                block->transportType() == SipTransportType::UDP ? "UDP" :
+                                block->transportType() == SipTransportType::TLS ? "TLS" : "WSS");
+        
+        addLog(QString("Starting %1 %2:%3").arg(transportName).arg(block->host()).arg(block->port()), "TEST");
+        
+        SipCredentials credentials;
+        credentials.username = m_sipUsername;
+        credentials.password = m_sipPassword;
+        credentials.domain = m_sipDomain;
+        credentials.proxy = block->host();
+        credentials.port = block->port();
+        credentials.transport = block->transportType();
+        credentials.registrationTimeout = m_sipTimeout->value();
+        
+        m_sipManager->registerAccount(credentials);
+    }
+}
+
+void MainWindow::onSipUnregisterAllClicked()
+{
+    addLog("========================================", "INFO");
+    addLog("Unregistering all SIP accounts", "INFO");
+    
+    int unregisteredCount = 0;
+    
+    // Unregister all accounts that have active registrations (tracked in m_sipExpiryTimes)
+    QStringList keysToUnregister = m_sipExpiryTimes.keys();
+    
+    for (const QString &key : keysToUnregister) {
+        // Unregister the account
+        m_sipManager->unregisterAccount(key);
+        
+        // Update the block UI
+        SipRegistrationBlock *block = m_sipBlocks.value(key);
+        if (block) {
+            block->setStatus(SipRegistrationBlock::Idle);
+            block->setMessage("Unregistered");
+            
+            QString transportName = (block->transportType() == SipTransportType::TCP ? "TCP" :
+                                    block->transportType() == SipTransportType::UDP ? "UDP" :
+                                    block->transportType() == SipTransportType::TLS ? "TLS" : "WSS");
+            
+            addLog(QString("Unregistered: %1 %2:%3").arg(transportName).arg(block->host()).arg(block->port()), "INFO");
+        }
+        
+        unregisteredCount++;
     }
     
-    statusBar()->showMessage("Starting all SIP registration tests...");
-    testNextSipBlock();
+    // Clear all expiry times
+    m_sipExpiryTimes.clear();
+    
+    // Stop any ongoing test all sequence
+    m_testingAllSip = false;
+    m_sipTestQueue.clear();
+    m_currentSipTestIndex = 0;
+    m_currentSipTestKey.clear();
+    
+    if (unregisteredCount > 0) {
+        addLog(QString("Unregistered %1 SIP account(s)").arg(unregisteredCount), "SUCCESS");
+        statusBar()->showMessage(QString("Unregistered %1 SIP account(s)").arg(unregisteredCount));
+    } else {
+        addLog("No active SIP registrations to unregister", "INFO");
+        statusBar()->showMessage("No active SIP registrations");
+    }
 }
 
 void MainWindow::onSipBlockRequested(SipTransportType transportType, const QString &host, int port)
@@ -666,8 +963,10 @@ void MainWindow::onSipBlockRequested(SipTransportType transportType, const QStri
     SipRegistrationBlock *block = m_sipBlocks.value(key);
     
     if (block) {
-        block->reset();
+        // Don't reset - just update status directly to avoid showing "Not tested"
         block->setStatus(SipRegistrationBlock::Registering);
+        block->setMessage("⏳ Registering...");
+        block->setExpiryTime(0);
         statusBar()->showMessage(QString("Registering via %1 %2:%3...").arg(transportName).arg(host).arg(port));
         
         SipCredentials credentials;
@@ -712,33 +1011,37 @@ void MainWindow::onSipRegistrationSucceeded(const QString &accountKey, const QSt
     if (block) {
         block->setStatus(SipRegistrationBlock::Registered);
         block->setMessage(message);
+        block->setProgress(0, 0); // Hide progress bar on success
         
         // Update expiry time using the actual expiry from PJSIP
         m_sipExpiryTimes[blockKey] = QDateTime::currentDateTime().addSecs(expiresIn);
         
         qDebug() << "Updated expiry for" << blockKey << "- expires in" << expiresIn << "seconds";
     }
-    
-    if (m_testingAllSip && !m_currentSipTestKey.isEmpty() && blockKey == m_currentSipTestKey) {
-        // For "Test All", keep registration active and move to next
-        QTimer::singleShot(2000, this, &MainWindow::testNextSipBlock);
-    }
 }
 
-void MainWindow::onSipRegistrationFailed(const QString &error)
+void MainWindow::onSipRegistrationFailed(const QString &accountKey, const QString &error)
 {
+    qDebug() << "========================================";
+    qDebug() << "MainWindow::onSipRegistrationFailed CALLED";
+    qDebug() << "Account Key:" << accountKey;
+    qDebug() << "Error:" << error;
+    qDebug() << "========================================";
+    
     addLog("SIP registration failed: " + error, "ERROR");
     
-    if (!m_currentSipTestKey.isEmpty()) {
-        SipRegistrationBlock *block = m_sipBlocks.value(m_currentSipTestKey);
-        if (block) {
-            block->setStatus(SipRegistrationBlock::Failed);
-            block->setMessage(error);
-        }
-    }
+    // Use the accountKey to find the correct block
+    SipRegistrationBlock *block = m_sipBlocks.value(accountKey);
     
-    if (m_testingAllSip) {
-        QTimer::singleShot(1000, this, &MainWindow::testNextSipBlock);
+    if (block) {
+        qDebug() << "Setting block to Failed status with message:" << error;
+        block->setStatus(SipRegistrationBlock::Failed);
+        block->setMessage(error);
+        block->setProgress(0, 0); // Hide progress bar on failure
+        qDebug() << "Block status updated successfully";
+    } else {
+        qDebug() << "WARNING: Could not find block for accountKey:" << accountKey;
+        qDebug() << "Available blocks:" << m_sipBlocks.keys();
     }
 }
 
@@ -750,6 +1053,70 @@ void MainWindow::onSipUnregistered()
 void MainWindow::onSipStatusChanged(const QString &status)
 {
     addLog("SIP Status: " + status, "INFO");
+    
+    // Try to find the block to update
+    SipRegistrationBlock *block = nullptr;
+    QString accountKey;
+    
+    // First, try to parse account key from new format: "[accountKey] message"
+    QRegularExpression bracketKeyRegex("^\\[([^\\]]+)\\]");
+    QRegularExpressionMatch bracketMatch = bracketKeyRegex.match(status);
+    
+    if (bracketMatch.hasMatch()) {
+        accountKey = bracketMatch.captured(1);
+        block = m_sipBlocks.value(accountKey);
+    }
+    
+    // If not found, try using m_currentSipTestKey (for individual tests)
+    if (!block && !m_currentSipTestKey.isEmpty()) {
+        accountKey = m_currentSipTestKey;
+        block = m_sipBlocks.value(accountKey);
+    }
+    
+    // If not found and we're in "Test All" mode, parse the account key from old status format
+    // Status format: "1:voip.eltropy.com:5060: In Progress"
+    if (!block && m_testingAllSip) {
+        QRegularExpression accountKeyRegex("(\\d+):([^:]+):(\\d+):");
+        QRegularExpressionMatch accountMatch = accountKeyRegex.match(status);
+        
+        if (accountMatch.hasMatch()) {
+            accountKey = QString("%1:%2:%3")
+                .arg(accountMatch.captured(1))
+                .arg(accountMatch.captured(2))
+                .arg(accountMatch.captured(3));
+            block = m_sipBlocks.value(accountKey);
+        }
+    }
+    
+    if (block) {
+        // Parse attempt count from status messages like "Retrying registration (attempt 2/5)..." or "Registering (attempt 3/6)..."
+        QRegularExpression attemptRegex("attempt (\\d+)/(\\d+)");
+        QRegularExpressionMatch match = attemptRegex.match(status);
+        
+        if (match.hasMatch()) {
+            int current = match.captured(1).toInt();
+            int total = match.captured(2).toInt();
+            block->setProgress(current, total);
+        }
+        
+        // Remove the [accountKey] prefix from the message for display
+        QString displayMessage = status;
+        if (bracketMatch.hasMatch()) {
+            displayMessage = status.mid(bracketMatch.capturedEnd()).trimmed();
+        }
+        
+        // If status contains "Retrying", keep the Registering status but update message
+        if (status.contains("Retrying", Qt::CaseInsensitive)) {
+            block->setStatus(SipRegistrationBlock::Registering);
+            block->setMessage(displayMessage);
+        }
+        // If status is "Registering", update to show registering
+        else if (status.contains("Registering", Qt::CaseInsensitive)) {
+            block->setStatus(SipRegistrationBlock::Registering);
+            block->setMessage(displayMessage);
+        }
+        // Other status updates are handled by specific callbacks
+    }
 }
 
 void MainWindow::testNextSipBlock()
@@ -778,6 +1145,7 @@ void MainWindow::testNextSipBlock()
            .arg(transportName).arg(host).arg(port), "TEST");
     
     QString key = getSipBlockKey(transportType, host, port);
+    m_currentSipTestKey = key;  // Set current test key so success/failure handlers work
     SipRegistrationBlock *block = m_sipBlocks.value(key);
     
     if (block) {
@@ -856,6 +1224,9 @@ void MainWindow::updateSipTimers()
             }
         }
     }
+    
+    // Also update call registration timer
+    updateCallRegistrationTimer();
 }
 
 #include "mainwindow_siplog.cpp"
@@ -900,7 +1271,7 @@ void MainWindow::createNetworkInfoTab()
     
     // Network Interfaces Section
     QGroupBox *interfacesGroup = new QGroupBox("Network Interfaces");
-    interfacesGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 12pt; "
+    interfacesGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
                                   "border: 2px solid #3498DB; border-radius: 5px; "
                                   "margin-top: 10px; padding-top: 10px; }"
                                   "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
@@ -913,7 +1284,7 @@ void MainWindow::createNetworkInfoTab()
     
     // DNS Servers Section
     QGroupBox *dnsGroup = new QGroupBox("DNS Servers");
-    dnsGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 12pt; "
+    dnsGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
                            "border: 2px solid #27ae60; border-radius: 5px; "
                            "margin-top: 10px; padding-top: 10px; }"
                            "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
@@ -926,7 +1297,7 @@ void MainWindow::createNetworkInfoTab()
     
     // Gateway & DHCP Section
     QGroupBox *gatewayGroup = new QGroupBox("Gateway & DHCP");
-    gatewayGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 12pt; "
+    gatewayGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
                                "border: 2px solid #e67e22; border-radius: 5px; "
                                "margin-top: 10px; padding-top: 10px; }"
                                "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
@@ -943,7 +1314,7 @@ void MainWindow::createNetworkInfoTab()
     
     // Latency Section
     QGroupBox *latencyGroup = new QGroupBox("Network Latency");
-    latencyGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 12pt; "
+    latencyGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
                                "border: 2px solid #9b59b6; border-radius: 5px; "
                                "margin-top: 10px; padding-top: 10px; }"
                                "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
@@ -956,7 +1327,7 @@ void MainWindow::createNetworkInfoTab()
     
     // Public IP Section
     QGroupBox *publicIpGroup = new QGroupBox("Public IP Address");
-    publicIpGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 12pt; "
+    publicIpGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
                                 "border: 2px solid #e74c3c; border-radius: 5px; "
                                 "margin-top: 10px; padding-top: 10px; }"
                                 "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
@@ -1020,16 +1391,212 @@ void MainWindow::onNetworkInfoUpdated(const NetworkDiagnostics &diagnostics)
 
 void MainWindow::onGatewayLatencyMeasured(int latencyMs)
 {
+    qDebug() << "MainWindow::onGatewayLatencyMeasured called with:" << latencyMs;
     if (latencyMs > 0) {
         m_latencyLabel->setText(QString("<b>Gateway Latency:</b> %1 ms").arg(latencyMs));
         addLog(QString("Gateway latency: %1 ms").arg(latencyMs), "INFO");
+    } else {
+        m_latencyLabel->setText("<b>Gateway Latency:</b> Unable to measure");
+        addLog("Gateway latency: Unable to measure", "WARNING");
     }
 }
 
 void MainWindow::onPublicIpDiscovered(const QString &ip)
 {
+    qDebug() << "MainWindow::onPublicIpDiscovered called with:" << ip;
     m_publicIpLabel->setText(QString("🌐 <b>Public IP Address:</b> %1").arg(ip));
     addLog(QString("Public IP: %1").arg(ip), "INFO");
+}
+
+void MainWindow::onEnvironmentChanged()
+{
+    Environment env = m_prodRadio->isChecked() ? Environment::PROD : Environment::UAT;
+    EnvironmentConfig::instance().setEnvironment(env);
+    
+    m_sipProxy = EnvironmentConfig::instance().getSipEndpoint();
+    m_sipDomain = EnvironmentConfig::instance().getSipDomain();
+    
+    rebuildConnectivityBlocks();
+    rebuildSipRegistrationBlocks();
+    
+    // Update VoIP quality server field
+    if (m_voipQualityServerEdit) {
+        m_voipQualityServerEdit->setText(EnvironmentConfig::instance().getVoipProxyEndpoint());
+        m_voipQualityServerEdit->setPlaceholderText("e.g., " + EnvironmentConfig::instance().getVoipProxyEndpoint());
+    }
+    
+    // Update SIP ALG host field
+    if (m_sipAlgHostEdit) {
+        m_sipAlgHostEdit->setText(EnvironmentConfig::instance().getSipEndpoint());
+        m_sipAlgHostEdit->setPlaceholderText("e.g., " + EnvironmentConfig::instance().getSipEndpoint());
+    }
+    
+    // Update call domain display
+    updateCallDomainDisplay();
+    
+    addLog(QString("Environment changed to: %1").arg(EnvironmentConfig::instance().environmentName()), "INFO");
+    addLog("All endpoints updated for " + EnvironmentConfig::instance().environmentName(), "INFO");
+}
+
+void MainWindow::updateCallDomainDisplay()
+{
+    if (m_domainDisplayLabel) {
+        QString fullDomain = m_sipDomain;
+        QString truncatedDomain = fullDomain.length() > 19 ? "..." + fullDomain.right(19) : fullDomain;
+        m_domainDisplayLabel->setText(QString("📍 Registers to: <b>%1</b>").arg(truncatedDomain));
+        m_domainDisplayLabel->setToolTip(fullDomain);
+    }
+}
+
+void MainWindow::updateCallInstructions()
+{
+    if (!m_callInstructionLabel) return;
+    
+    if (m_oneWayAudioRadio && m_oneWayAudioRadio->isChecked()) {
+        m_callInstructionLabel->setText(
+            "ℹ️ <b>One-Way Audio Check (calls *1):</b> You will hear a message from Eltropy VoIP testing platform. "
+            "If audio is clear, hang up. If not audible, there may be a RTP firewall issue with your network blocking incoming audio."
+        );
+        m_callInstructionLabel->setStyleSheet(
+            "background-color: #2d2d30; "
+            "border-left: 3px solid #3498DB; "
+            "padding: 10px; "
+            "color: #d4d4d4; "
+            "border-radius: 3px; "
+            "font-size: 12pt;"
+        );
+    } else if (m_twoWayAudioRadio && m_twoWayAudioRadio->isChecked()) {
+        m_callInstructionLabel->setText(
+            "ℹ️ <b>Two-Way Audio Check (calls *2):</b> You will land in a 2-way audio check system. "
+            "Speak for 15 seconds, then you'll hear your recording played back. "
+            "If playback doesn't work, there may be an RTP firewall issue with your network."
+        );
+        m_callInstructionLabel->setStyleSheet(
+            "background-color: #2d2d30; "
+            "border-left: 3px solid #27AE60; "
+            "padding: 10px; "
+            "color: #d4d4d4; "
+            "border-radius: 3px; "
+            "font-size: 12pt;"
+        );
+    } else if (m_customNumberRadio && m_customNumberRadio->isChecked()) {
+        m_callInstructionLabel->setText(
+            "ℹ️ <b>Custom Number Call:</b> Calling the number entered in textbox. "
+            "This will place a regular call to the specified extension or phone number."
+        );
+        m_callInstructionLabel->setStyleSheet(
+            "background-color: #2d2d30; "
+            "border-left: 3px solid #F39C12; "
+            "padding: 10px; "
+            "color: #d4d4d4; "
+            "border-radius: 3px; "
+            "font-size: 12pt;"
+        );
+    }
+}
+
+void MainWindow::rebuildConnectivityBlocks()
+{
+    // Clear existing blocks
+    QLayoutItem *item;
+    while ((item = m_connectivityGridLayout->takeAt(0)) != nullptr) {
+        delete item->widget();
+        delete item;
+    }
+    m_testBlocks.clear();
+    
+    QString host = EnvironmentConfig::instance().getSipEndpoint();
+    QString tcpPortCheckHost = EnvironmentConfig::instance().getTcpPortCheckEndpoint();
+    
+    int row = 0, col = 0;
+    auto createBlock = [&](const QString &emoji, const QString &title, const QString &description, ConnectivityResult::Protocol protocol, int port) {
+        ConnectivityTestBlock *block = new ConnectivityTestBlock(emoji, title, description, protocol, host, port, m_connectivityScrollContent);
+        connect(block, &ConnectivityTestBlock::testRequested, this, &MainWindow::onTestBlockRequested);
+        QString key = getBlockKey(protocol, host, port);
+        m_testBlocks[key] = block;
+        m_connectivityGridLayout->addWidget(block, row, col);
+        col++;
+        if (col >= 2) {
+            col = 0;
+            row++;
+        }
+        return block;
+    };
+    
+    createBlock("🔌", "TCP Port 5060", "Standard SIP signaling to " + host + " over TCP", ConnectivityResult::TCP, 5060);
+    createBlock("📡", "UDP Port 5060", "Standard SIP signaling to " + host + " over UDP", ConnectivityResult::UDP, 5060);
+    createBlock("🔌", "TCP Port 5080", "Alternative SIP signaling to " + host + " over TCP", ConnectivityResult::TCP, 5080);
+    createBlock("📡", "UDP Port 5080", "Alternative SIP signaling to " + host + " over UDP", ConnectivityResult::UDP, 5080);
+    createBlock("🌐", "WSS Port 443", "WebSocket Secure for web-based calls to " + host, ConnectivityResult::WSS, 443);
+    
+    // RTP port tests using TCP to domain name
+    ConnectivityTestBlock *rtpBlock = new ConnectivityTestBlock("🎙️", "TCP Port 16381 (RTP)", "Media port connectivity check to " + tcpPortCheckHost, ConnectivityResult::TCP, tcpPortCheckHost, 16381, m_connectivityScrollContent);
+    QString rtpKey = getBlockKey(ConnectivityResult::TCP, tcpPortCheckHost, 16381);
+    m_testBlocks[rtpKey] = rtpBlock;
+    m_connectivityGridLayout->addWidget(rtpBlock, row, col);
+    col++;
+    if (col >= 2) {
+        col = 0;
+        row++;
+    }
+    
+    if (col != 0) {
+        m_connectivityGridLayout->setColumnStretch(col, 1);
+    }
+}
+
+void MainWindow::rebuildSipRegistrationBlocks()
+{
+    // Clear existing blocks
+    QLayoutItem *item;
+    while ((item = m_sipBlocksLayout->takeAt(0)) != nullptr) {
+        delete item->widget();
+        delete item;
+    }
+    m_sipBlocks.clear();
+    
+    // Create registration blocks for each transport/port combination
+    struct SipTestConfig {
+        QString name;
+        int port;
+        SipTransportType type;
+    };
+    
+    QList<SipTestConfig> sipConfigs = {
+        {"TCP", 5060, SipTransportType::TCP},
+        {"TLS", 5061, SipTransportType::TLS},
+        {"UDP", 5060, SipTransportType::UDP},
+        {"TCP", 5080, SipTransportType::TCP},
+        {"UDP", 5080, SipTransportType::UDP}
+    };
+    
+    // Add blocks in 2-column grid layout
+    int sipRow = 0, sipCol = 0;
+    for (const auto &config : sipConfigs) {
+        SipRegistrationBlock *block = new SipRegistrationBlock(
+            config.name,
+            m_sipProxy,
+            config.port,
+            config.type,
+            m_sipScrollWidget
+        );
+        
+        QString key = getSipBlockKey(config.type, m_sipProxy, config.port);
+        m_sipBlocks[key] = block;
+        
+        connect(block, &SipRegistrationBlock::testRequested,
+                this, &MainWindow::onSipBlockRequested);
+        connect(block, &SipRegistrationBlock::unregisterRequested,
+                this, &MainWindow::onSipUnregisterRequested);
+        
+        m_sipBlocksLayout->addWidget(block, sipRow, sipCol);
+        
+        sipCol++;
+        if (sipCol >= 2) {
+            sipCol = 0;
+            sipRow++;
+        }
+    }
 }
 
 // Include Advanced Checks tab implementation

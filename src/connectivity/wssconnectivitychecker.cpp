@@ -1,9 +1,10 @@
 #include "wssconnectivitychecker.h"
 #include <QSslConfiguration>
+#include <QSslCipher>
 
 WssConnectivityChecker::WssConnectivityChecker(QObject *parent)
     : IConnectivityChecker(parent),
-      m_webSocket(nullptr),
+      m_socket(nullptr),
       m_timeoutTimer(nullptr),
       m_port(0),
       m_completed(false)
@@ -23,23 +24,21 @@ void WssConnectivityChecker::checkConnectivity(const QString &host, int port, in
     m_port = port;
     m_completed = false;
 
-    m_webSocket = new QWebSocket(QString(), QWebSocketProtocol::VersionLatest);
-    m_webSocket->setParent(this);
-
+    m_socket = new QSslSocket(this);
     m_timeoutTimer = new QTimer(this);
     m_timeoutTimer->setSingleShot(true);
 
-    QSslConfiguration sslConfig = m_webSocket->sslConfiguration();
+    QSslConfiguration sslConfig = m_socket->sslConfiguration();
     sslConfig.setPeerVerifyMode(QSslSocket::VerifyNone);
-    m_webSocket->setSslConfiguration(sslConfig);
+    m_socket->setSslConfiguration(sslConfig);
 
-    connect(m_webSocket, &QWebSocket::connected,
+    connect(m_socket, &QSslSocket::encrypted,
             this, &WssConnectivityChecker::onConnected);
 
-    connect(m_webSocket, &QWebSocket::errorOccurred,
+    connect(m_socket, &QSslSocket::errorOccurred,
             this, &WssConnectivityChecker::onError);
 
-    connect(m_webSocket, &QWebSocket::sslErrors,
+    connect(m_socket, &QSslSocket::sslErrors,
             this, &WssConnectivityChecker::onSslErrors);
 
     connect(m_timeoutTimer, &QTimer::timeout,
@@ -48,10 +47,8 @@ void WssConnectivityChecker::checkConnectivity(const QString &host, int port, in
     emit progressUpdate(QString("Checking WSS connectivity to %1:%2...")
                         .arg(host).arg(port));
 
-    QString url = QString("wss://%1:%2").arg(host).arg(port);
-
     m_elapsedTimer.start();
-    m_webSocket->open(QUrl(url));
+    m_socket->connectToHostEncrypted(host, port);
 
     m_timeoutTimer->start(timeout);
 }
@@ -63,19 +60,24 @@ void WssConnectivityChecker::cancel()
 
 void WssConnectivityChecker::onConnected()
 {
-    if (!m_webSocket || m_completed)
+    if (!m_socket || m_completed)
         return;
 
     m_completed = true;
 
     qint64 responseTime = m_elapsedTimer.elapsed();
 
+    QString cipherInfo = m_socket->sessionCipher().name();
+    QString protocolInfo = m_socket->sessionCipher().protocolString();
+
     ConnectivityResult result(
         ConnectivityResult::WSS,
         m_host,
         m_port,
         ConnectivityResult::Success,
-        "WebSocket Secure connection established"
+        QString("WSS TLS handshake successful (%1, %2)")
+            .arg(protocolInfo)
+            .arg(cipherInfo)
     );
 
     result.setResponseTime(responseTime);
@@ -83,30 +85,6 @@ void WssConnectivityChecker::onConnected()
     emit connectivityChecked(result);
     cleanup();
 }
-
-// void WssConnectivityChecker::onError(QAbstractSocket::SocketError error)
-// {
-//     Q_UNUSED(error);
-
-//     if (!m_webSocket || m_completed)
-//         return;
-
-//     m_completed = true;
-
-//     QString errorMsg = m_webSocket->errorString();
-
-//     ConnectivityResult result(
-//         ConnectivityResult::WSS,
-//         m_host,
-//         m_port,
-//         ConnectivityResult::Failed,
-//         errorMsg
-//     );
-
-//     emit connectivityChecked(result);
-
-//     QMetaObject::invokeMethod(this, "cleanup", Qt::QueuedConnection);
-// }
 
 void WssConnectivityChecker::onError(QAbstractSocket::SocketError error)
 {
@@ -117,11 +95,10 @@ void WssConnectivityChecker::onError(QAbstractSocket::SocketError error)
 
     m_completed = true;
 
-    QWebSocket *socket = m_webSocket;
     QString errorMsg = "WebSocket error";
 
-    if (socket) {
-        errorMsg = socket->errorString();
+    if (m_socket) {
+        errorMsg = m_socket->errorString();
     }
 
     ConnectivityResult result(
@@ -140,10 +117,10 @@ void WssConnectivityChecker::onSslErrors(const QList<QSslError> &errors)
 {
     Q_UNUSED(errors);
 
-    if (!m_webSocket)
+    if (!m_socket)
         return;
 
-    m_webSocket->ignoreSslErrors();
+    m_socket->ignoreSslErrors();
 }
 
 void WssConnectivityChecker::onTimeout()
@@ -175,11 +152,11 @@ void WssConnectivityChecker::cleanup()
         timer->deleteLater();
     }
 
-    if (m_webSocket) {
-        QWebSocket *socket = m_webSocket;
-        m_webSocket = nullptr;
+    if (m_socket) {
+        QSslSocket *socket = m_socket;
+        m_socket = nullptr;
         disconnect(socket, nullptr, this, nullptr);
-        socket->close();
+        socket->disconnectFromHost();
         socket->deleteLater();
     }
 }

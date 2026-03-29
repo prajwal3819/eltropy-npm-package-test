@@ -55,6 +55,7 @@ OBJECTS_DIR   = ./
 SOURCES       = src/main.cpp \
 		src/mainwindow.cpp \
 		src/models/connectivityresult.cpp \
+		src/models/environmentconfig.cpp \
 		src/connectivity/connectivitymanager.cpp \
 		src/connectivity/multipingchecker.cpp \
 		src/connectivity/rtpconnectivitychecker.cpp \
@@ -89,6 +90,7 @@ SOURCES       = src/main.cpp \
 OBJECTS       = main.o \
 		mainwindow.o \
 		connectivityresult.o \
+		environmentconfig.o \
 		connectivitymanager.o \
 		multipingchecker.o \
 		rtpconnectivitychecker.o \
@@ -503,6 +505,7 @@ DIST          = /opt/homebrew/share/qt/mkspecs/features/spec_pre.prf \
 		src/connectivity/nattypechecker.h \
 		src/connectivity/voipqualitychecker.h \
 		src/models/connectivityresult.h \
+		src/models/environmentconfig.h \
 		src/widgets/connectivitytestblock.h \
 		src/widgets/sipregistrationblock.h \
 		src/sip/sipcallmanager.h \
@@ -511,6 +514,7 @@ DIST          = /opt/homebrew/share/qt/mkspecs/features/spec_pre.prf \
 		src/network/networkinfomanager.h src/main.cpp \
 		src/mainwindow.cpp \
 		src/models/connectivityresult.cpp \
+		src/models/environmentconfig.cpp \
 		src/connectivity/connectivitymanager.cpp \
 		src/connectivity/multipingchecker.cpp \
 		src/connectivity/rtpconnectivitychecker.cpp \
@@ -1327,8 +1331,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /opt/homebrew/share/qt/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents src/mainwindow.h src/connectivity/iconnectivitychecker.h src/connectivity/tcpconnectivitychecker.h src/connectivity/udpconnectivitychecker.h src/connectivity/tlsconnectivitychecker.h src/connectivity/wssconnectivitychecker.h src/connectivity/rtpconnectivitychecker.h src/connectivity/multipingchecker.h src/connectivity/connectivitymanager.h src/connectivity/sipalgchecker.h src/connectivity/nattypechecker.h src/connectivity/voipqualitychecker.h src/models/connectivityresult.h src/widgets/connectivitytestblock.h src/widgets/sipregistrationblock.h src/sip/sipcallmanager.h src/sip/sipregistrationmanager.h src/network/networkdiagnostics.h src/network/networkinfomanager.h $(DISTDIR)/
-	$(COPY_FILE) --parents src/main.cpp src/mainwindow.cpp src/models/connectivityresult.cpp src/connectivity/connectivitymanager.cpp src/connectivity/multipingchecker.cpp src/connectivity/rtpconnectivitychecker.cpp src/connectivity/tcpconnectivitychecker.cpp src/connectivity/tlsconnectivitychecker.cpp src/connectivity/udpconnectivitychecker.cpp src/connectivity/wssconnectivitychecker.cpp src/connectivity/sipalgchecker.cpp src/connectivity/nattypechecker.cpp src/connectivity/voipqualitychecker.cpp src/widgets/connectivitytestblock.cpp src/widgets/sipregistrationblock.cpp src/sip/sipregistrationmanager.cpp src/sip/sipcallmanager.cpp src/network/networkinfomanager.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents src/mainwindow.h src/connectivity/iconnectivitychecker.h src/connectivity/tcpconnectivitychecker.h src/connectivity/udpconnectivitychecker.h src/connectivity/tlsconnectivitychecker.h src/connectivity/wssconnectivitychecker.h src/connectivity/rtpconnectivitychecker.h src/connectivity/multipingchecker.h src/connectivity/connectivitymanager.h src/connectivity/sipalgchecker.h src/connectivity/nattypechecker.h src/connectivity/voipqualitychecker.h src/models/connectivityresult.h src/models/environmentconfig.h src/widgets/connectivitytestblock.h src/widgets/sipregistrationblock.h src/sip/sipcallmanager.h src/sip/sipregistrationmanager.h src/network/networkdiagnostics.h src/network/networkinfomanager.h $(DISTDIR)/
+	$(COPY_FILE) --parents src/main.cpp src/mainwindow.cpp src/models/connectivityresult.cpp src/models/environmentconfig.cpp src/connectivity/connectivitymanager.cpp src/connectivity/multipingchecker.cpp src/connectivity/rtpconnectivitychecker.cpp src/connectivity/tcpconnectivitychecker.cpp src/connectivity/tlsconnectivitychecker.cpp src/connectivity/udpconnectivitychecker.cpp src/connectivity/wssconnectivitychecker.cpp src/connectivity/sipalgchecker.cpp src/connectivity/nattypechecker.cpp src/connectivity/voipqualitychecker.cpp src/widgets/connectivitytestblock.cpp src/widgets/sipregistrationblock.cpp src/sip/sipregistrationmanager.cpp src/sip/sipcallmanager.cpp src/network/networkinfomanager.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -1736,6 +1740,8 @@ moc_udpconnectivitychecker.cpp: src/connectivity/udpconnectivitychecker.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
 		/opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/QHostInfo \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/qhostinfo.h \
 		moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
 	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/prajwal/eltropy/eltroy-voip-connectivity-app/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app/src -I/opt/homebrew/include -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtWebSockets.framework/Headers -I/opt/homebrew/lib/QtNetwork.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib src/connectivity/udpconnectivitychecker.h -o moc_udpconnectivitychecker.cpp
@@ -1768,8 +1774,8 @@ moc_wssconnectivitychecker.cpp: src/connectivity/wssconnectivitychecker.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
 		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
-		/opt/homebrew/lib/QtWebSockets.framework/Headers/QWebSocket \
-		/opt/homebrew/lib/QtWebSockets.framework/Headers/qwebsocket.h \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/QSslSocket \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/qsslsocket.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QTimer \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
@@ -1914,6 +1920,8 @@ moc_sipregistrationblock.cpp: src/widgets/sipregistrationblock.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QProgressBar \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qprogressbar.h \
 		src/sip/sipregistrationmanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QObject \
 		/opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
@@ -1923,6 +1931,8 @@ moc_sipregistrationblock.cpp: src/widgets/sipregistrationblock.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
 		moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
 	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/prajwal/eltropy/eltroy-voip-connectivity-app/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app/src -I/opt/homebrew/include -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtWebSockets.framework/Headers -I/opt/homebrew/lib/QtNetwork.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib src/widgets/sipregistrationblock.h -o moc_sipregistrationblock.cpp
@@ -2208,6 +2218,8 @@ moc_sipcallmanager.cpp: src/sip/sipcallmanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
 		moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
 	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/prajwal/eltropy/eltroy-voip-connectivity-app/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app/src -I/opt/homebrew/include -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtWebSockets.framework/Headers -I/opt/homebrew/lib/QtNetwork.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib src/sip/sipcallmanager.h -o moc_sipcallmanager.cpp
@@ -2221,6 +2233,8 @@ moc_sipregistrationmanager.cpp: src/sip/sipregistrationmanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
 		moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
 	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/prajwal/eltropy/eltroy-voip-connectivity-app/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app -I/Users/prajwal/eltropy/eltroy-voip-connectivity-app/src -I/opt/homebrew/include -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtWebSockets.framework/Headers -I/opt/homebrew/lib/QtNetwork.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib src/sip/sipregistrationmanager.h -o moc_sipregistrationmanager.cpp
@@ -2902,6 +2916,7 @@ mainwindow.o: src/mainwindow.cpp src/mainwindow.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/qhostaddress.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QProcess \
 		/opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
+		src/models/environmentconfig.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
@@ -2917,13 +2932,21 @@ mainwindow.o: src/mainwindow.cpp src/mainwindow.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QStatusBar \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qstatusbar.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QRegularExpression \
+		/opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \
 		src/mainwindow_siplog.cpp \
 		src/mainwindow_advancedtab.cpp \
 		src/connectivity/sipalgchecker.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QUdpSocket \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/qudpsocket.h \
 		src/connectivity/nattypechecker.h \
-		src/mainwindow_calltab.cpp
+		src/mainwindow_calltab.cpp \
+		src/mainwindow_voipqualitytab.cpp \
+		src/connectivity/voipqualitychecker.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
+		/opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QVector \
+		/opt/homebrew/lib/QtCore.framework/Headers/qvector.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o mainwindow.o src/mainwindow.cpp
 
 connectivityresult.o: src/models/connectivityresult.cpp src/models/connectivityresult.h \
@@ -2932,6 +2955,11 @@ connectivityresult.o: src/models/connectivityresult.cpp src/models/connectivityr
 		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
 		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o connectivityresult.o src/models/connectivityresult.cpp
+
+environmentconfig.o: src/models/environmentconfig.cpp src/models/environmentconfig.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QString \
+		/opt/homebrew/lib/QtCore.framework/Headers/qstring.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o environmentconfig.o src/models/environmentconfig.cpp
 
 connectivitymanager.o: src/connectivity/connectivitymanager.cpp src/connectivity/connectivitymanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QObject \
@@ -2957,12 +2985,12 @@ connectivitymanager.o: src/connectivity/connectivitymanager.cpp src/connectivity
 		src/connectivity/udpconnectivitychecker.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QUdpSocket \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/qudpsocket.h \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/QHostInfo \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/qhostinfo.h \
 		src/connectivity/tlsconnectivitychecker.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QSslSocket \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/qsslsocket.h \
 		src/connectivity/wssconnectivitychecker.h \
-		/opt/homebrew/lib/QtWebSockets.framework/Headers/QWebSocket \
-		/opt/homebrew/lib/QtWebSockets.framework/Headers/qwebsocket.h \
 		src/connectivity/rtpconnectivitychecker.h \
 		src/connectivity/sipalgchecker.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QHostAddress \
@@ -2988,12 +3016,12 @@ multipingchecker.o: src/connectivity/multipingchecker.cpp src/connectivity/multi
 		src/connectivity/udpconnectivitychecker.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QUdpSocket \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/qudpsocket.h \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/QHostInfo \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/qhostinfo.h \
 		src/connectivity/tlsconnectivitychecker.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QSslSocket \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/qsslsocket.h \
 		src/connectivity/wssconnectivitychecker.h \
-		/opt/homebrew/lib/QtWebSockets.framework/Headers/QWebSocket \
-		/opt/homebrew/lib/QtWebSockets.framework/Headers/qwebsocket.h \
 		src/connectivity/rtpconnectivitychecker.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o multipingchecker.o src/connectivity/multipingchecker.cpp
 
@@ -3073,6 +3101,8 @@ udpconnectivitychecker.o: src/connectivity/udpconnectivitychecker.cpp src/connec
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
 		/opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/QHostInfo \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/qhostinfo.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QHostAddress \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/qhostaddress.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QNetworkDatagram \
@@ -3088,14 +3118,16 @@ wssconnectivitychecker.o: src/connectivity/wssconnectivitychecker.cpp src/connec
 		/opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
 		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
-		/opt/homebrew/lib/QtWebSockets.framework/Headers/QWebSocket \
-		/opt/homebrew/lib/QtWebSockets.framework/Headers/qwebsocket.h \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/QSslSocket \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/qsslsocket.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QTimer \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
 		/opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QSslConfiguration \
-		/opt/homebrew/lib/QtNetwork.framework/Headers/qsslconfiguration.h
+		/opt/homebrew/lib/QtNetwork.framework/Headers/qsslconfiguration.h \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/QSslCipher \
+		/opt/homebrew/lib/QtNetwork.framework/Headers/qsslcipher.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o wssconnectivitychecker.o src/connectivity/wssconnectivitychecker.cpp
 
 sipalgchecker.o: src/connectivity/sipalgchecker.cpp src/connectivity/sipalgchecker.h \
@@ -3205,6 +3237,8 @@ sipregistrationblock.o: src/widgets/sipregistrationblock.cpp src/widgets/sipregi
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QProgressBar \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qprogressbar.h \
 		src/sip/sipregistrationmanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QObject \
 		/opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
@@ -3214,6 +3248,9 @@ sipregistrationblock.o: src/widgets/sipregistrationblock.cpp src/widgets/sipregi
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
+		src/models/environmentconfig.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout
@@ -3228,8 +3265,12 @@ sipregistrationmanager.o: src/sip/sipregistrationmanager.cpp src/sip/sipregistra
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QDebug \
 		/opt/homebrew/lib/QtCore.framework/Headers/qdebug.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QUuid \
+		/opt/homebrew/lib/QtCore.framework/Headers/quuid.h \
 		/opt/homebrew/include/pjsua2.hpp \
 		/opt/homebrew/include/pjsua2/endpoint.hpp \
 		/opt/homebrew/include/pjsua2/persistent.hpp \
@@ -3784,6 +3825,8 @@ sipcallmanager.o: src/sip/sipcallmanager.cpp src/sip/sipcallmanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QMap \
 		/opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+		/opt/homebrew/lib/QtCore.framework/Headers/QDateTime \
+		/opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QDebug \
 		/opt/homebrew/lib/QtCore.framework/Headers/qdebug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sipcallmanager.o src/sip/sipcallmanager.cpp

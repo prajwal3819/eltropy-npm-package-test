@@ -7,6 +7,8 @@
 #include <QProcess>
 #include <QTimer>
 
+class QNetworkReply;
+
 struct NetworkInterfaceInfo {
     QString name;
     QString hardwareName;
@@ -48,7 +50,7 @@ signals:
 
 private slots:
     void onGatewayPingFinished(int exitCode, QProcess::ExitStatus exitStatus);
-    void onPublicIpCheckFinished();
+    void onPublicIpCheckFinished(QNetworkReply *reply);
 
 private:
     void gatherInterfaceInfo();

@@ -5,6 +5,7 @@
 #include <QString>
 #include <QTimer>
 #include <QMap>
+#include <QDateTime>
 
 // Forward declarations for PJSIP types
 namespace pj {
@@ -60,13 +61,14 @@ public:
 signals:
     void registrationStarted();
     void registrationSucceeded(const QString &accountKey, const QString &message, int expiresIn);
-    void registrationFailed(const QString &error);
+    void registrationFailed(const QString &accountKey, const QString &error);
     void unregistered();
     void statusChanged(const QString &status);
 
 private slots:
     void checkRegistrationStatus();
-    void retryRegistration();
+    void onRetryTimerTimeout();
+    void retryRegistration(const QString &accountKey);
 
 private:
     void initializePjsip();
@@ -77,15 +79,17 @@ private:
     SipEndpoint *m_endpoint;
     QMap<QString, SipAccount*> m_accounts;  // Key: transport:host:port
     QTimer *m_statusTimer;
-    QTimer *m_retryTimer;
     
     bool m_initialized;
     bool m_autoRetryEnabled;
-    int m_retryCount;
     int m_maxRetries;
     int m_retryIntervalMs;
     QString m_lastError;
     QMap<QString, SipCredentials> m_credentialsMap;  // Store credentials per account
+    QMap<QString, QDateTime> m_registrationStartTimes;  // Track when registration started
+    QMap<QString, int> m_timeoutCounts;  // Track consecutive timeout counts per account
+    QMap<QString, int> m_retryCounts;  // Track retry count per account (not global)
+    QMap<QString, QTimer*> m_retryTimers;  // Per-account retry timers for parallel testing
     
     QString getAccountKey(SipTransportType transport, const QString &host, int port) const;
     QString getAccountKeyFromAccount(SipAccount *account) const;

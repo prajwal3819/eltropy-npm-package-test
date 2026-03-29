@@ -34,6 +34,11 @@ public:
     ~VoIPQualityChecker();
 
     void checkConnectivity(const QString &host, int port, int timeoutMs = 30000) override;
+    
+    // Configure test parameters
+    void setPacketsToSend(int packets) { m_packetsToSend = packets; }
+    void setPacketInterval(int intervalMs) { m_packetIntervalMs = intervalMs; }
+    void setPacketSize(int sizeBytes) { m_packetSize = sizeBytes; }
     void cancel() override;
 
 signals:
@@ -82,8 +87,10 @@ private:
     
     VoIPQualityMetrics m_currentMetrics;
     
-    static const int PACKETS_TO_SEND = 100;
-    static const int PACKET_INTERVAL_MS = 20; // 50 packets/sec (typical VoIP)
+    // Configurable test parameters
+    int m_packetsToSend;
+    int m_packetIntervalMs;
+    int m_packetSize;
 };
 
 #endif // VOIPQUALITYCHECKER_H

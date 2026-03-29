@@ -2,7 +2,7 @@
 #define WSSCONNECTIVITYCHECKER_H
 
 #include "iconnectivitychecker.h"
-#include <QWebSocket>
+#include <QSslSocket>
 #include <QTimer>
 #include <QElapsedTimer>
 
@@ -26,7 +26,7 @@ private slots:
 private:
     void cleanup();
 
-    QWebSocket *m_webSocket;
+    QSslSocket *m_socket;
     QTimer *m_timeoutTimer;
     QElapsedTimer m_elapsedTimer;
 

@@ -36,6 +36,8 @@ set(PROJECT_SOURCES
     src/models/connectivityresult.h
     src/models/serverconfig.cpp
     src/models/serverconfig.h
+    src/models/environmentconfig.cpp
+    src/models/environmentconfig.h
 )
 
 if(Qt6_FOUND)

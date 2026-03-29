@@ -160,7 +160,9 @@ void NetworkInfoManager::measureGatewayLatency()
 {
     if (m_diagnostics.defaultGateway.isEmpty() || 
         m_diagnostics.defaultGateway == "Not found") {
+        qDebug() << "Cannot measure gateway latency: gateway not found";
         m_diagnostics.gatewayLatencyMs = -1;
+        emit gatewayLatencyMeasured(m_diagnostics.gatewayLatencyMs);
         return;
     }
     
@@ -169,6 +171,7 @@ void NetworkInfoManager::measureGatewayLatency()
         m_pingProcess->deleteLater();
     }
     
+    qDebug() << "Starting ping to gateway:" << m_diagnostics.defaultGateway;
     m_pingProcess = new QProcess(this);
     connect(m_pingProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &NetworkInfoManager::onGatewayPingFinished);
@@ -182,9 +185,15 @@ void NetworkInfoManager::onGatewayPingFinished(int exitCode, QProcess::ExitStatu
     
     if (exitCode == 0 && m_pingProcess) {
         QString output = m_pingProcess->readAllStandardOutput();
+        QString errorOutput = m_pingProcess->readAllStandardError();
+        qDebug() << "Gateway ping output:" << output;
+        qDebug() << "Gateway ping error output:" << errorOutput;
         m_diagnostics.gatewayLatencyMs = parsePingLatency(output);
+        qDebug() << "Gateway ping successful, parsed latency:" << m_diagnostics.gatewayLatencyMs << "ms";
     } else {
+        QString errorOutput = m_pingProcess ? m_pingProcess->readAllStandardError() : "";
         m_diagnostics.gatewayLatencyMs = -1;
+        qDebug() << "Gateway ping failed, exit code:" << exitCode << "error:" << errorOutput;
     }
     
     // Always emit the signal so UI gets updated
@@ -199,18 +208,45 @@ void NetworkInfoManager::onGatewayPingFinished(int exitCode, QProcess::ExitStatu
 int NetworkInfoManager::parsePingLatency(const QString &output)
 {
     // Parse average latency from ping output
-    // Example: "round-trip min/avg/max/stddev = 1.234/2.345/3.456/0.789 ms"
-    QRegularExpression avgRegex("avg[=/]([\\d\\.]+)");
-    QRegularExpressionMatch match = avgRegex.match(output);
+    // macOS format: "round-trip min/avg/max/stddev = 1.234/2.345/3.456/0.789 ms"
+    // Also try: "rtt min/avg/max/mdev = 1.234/2.345/3.456/0.789 ms"
+    
+    qDebug() << "Parsing ping output for latency...";
+    
+    // Try macOS format first
+    QRegularExpression macRegex("round-trip[^=]+=\\s*[\\d\\.]+/([\\d\\.]+)/");
+    QRegularExpressionMatch match = macRegex.match(output);
     if (match.hasMatch()) {
-        return static_cast<int>(match.captured(1).toDouble());
+        double latency = match.captured(1).toDouble();
+        qDebug() << "Parsed latency (macOS format):" << latency;
+        return static_cast<int>(latency);
     }
     
+    // Try Linux format
+    QRegularExpression linuxRegex("rtt[^=]+=\\s*[\\d\\.]+/([\\d\\.]+)/");
+    match = linuxRegex.match(output);
+    if (match.hasMatch()) {
+        double latency = match.captured(1).toDouble();
+        qDebug() << "Parsed latency (Linux format):" << latency;
+        return static_cast<int>(latency);
+    }
+    
+    // Try simpler pattern
+    QRegularExpression simpleRegex("avg[=/]([\\d\\.]+)");
+    match = simpleRegex.match(output);
+    if (match.hasMatch()) {
+        double latency = match.captured(1).toDouble();
+        qDebug() << "Parsed latency (simple format):" << latency;
+        return static_cast<int>(latency);
+    }
+    
+    qDebug() << "Failed to parse latency from ping output";
     return -1;
 }
 
 void NetworkInfoManager::discoverPublicIp()
 {
+    qDebug() << "Starting public IP discovery...";
     QNetworkAccessManager *manager = new QNetworkAccessManager(this);
     connect(manager, &QNetworkAccessManager::finished, this, &NetworkInfoManager::onPublicIpCheckFinished);
     
@@ -219,16 +255,24 @@ void NetworkInfoManager::discoverPublicIp()
     manager->get(request);
 }
 
-void NetworkInfoManager::onPublicIpCheckFinished()
+void NetworkInfoManager::onPublicIpCheckFinished(QNetworkReply *reply)
 {
-    QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
-    if (!reply) return;
+    qDebug() << "Public IP check finished, reply:" << (reply ? "valid" : "null");
+    
+    if (!reply) {
+        qDebug() << "Public IP check: reply is null";
+        m_diagnostics.publicIp = "Unable to detect";
+        emit publicIpDiscovered(m_diagnostics.publicIp);
+        return;
+    }
     
     if (reply->error() == QNetworkReply::NoError) {
         m_diagnostics.publicIp = reply->readAll().trimmed();
+        qDebug() << "Public IP discovered:" << m_diagnostics.publicIp;
         emit publicIpDiscovered(m_diagnostics.publicIp);
     } else {
         m_diagnostics.publicIp = "Unable to detect";
+        qDebug() << "Public IP detection failed:" << reply->errorString();
         emit publicIpDiscovered(m_diagnostics.publicIp);
     }
     

@@ -83,10 +83,12 @@ signals:
     void audioLevelChanged(int txLevel, int rxLevel);
     void errorOccurred(const QString &error);
     void sipPacketLogged(const QString &packet);
+    void rtpStatisticsUpdated(const QString &stats);
     
 public slots:
     void onCallStateChanged(CallState state, const QString &info);
     void onCallMediaStateChanged();
+    void updateRtpStatistics();
     
 private:
     bool initializePjsip();
@@ -102,6 +104,9 @@ private:
     bool m_isMuted;
     bool m_isOnHold;
     CallState m_callState;
+    QTimer *m_rtpStatsTimer;
+    int m_lastDetectedRxDscp;
+    int m_configuredTxDscp;
     
     QString m_username;
     QString m_password;

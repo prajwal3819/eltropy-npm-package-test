@@ -74,9 +74,10 @@ void MultiPingChecker::onCheckerCompleted(const ConnectivityResult &result)
     emit attemptCompleted(result);
     
     if (m_currentChecker) {
-        m_currentChecker->disconnect();
-        delete m_currentChecker;
+        IConnectivityChecker *checker = m_currentChecker;
         m_currentChecker = nullptr;
+        checker->disconnect();
+        checker->deleteLater();
     }
     
     QTimer::singleShot(100, this, &MultiPingChecker::runNextAttempt);
@@ -85,10 +86,11 @@ void MultiPingChecker::onCheckerCompleted(const ConnectivityResult &result)
 void MultiPingChecker::cleanup()
 {
     if (m_currentChecker) {
-        m_currentChecker->cancel();
-        m_currentChecker->disconnect();
-        delete m_currentChecker;
+        IConnectivityChecker *checker = m_currentChecker;
         m_currentChecker = nullptr;
+        checker->disconnect();
+        checker->cancel();
+        checker->deleteLater();
     }
 }
 

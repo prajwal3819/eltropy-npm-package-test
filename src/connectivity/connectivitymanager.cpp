@@ -46,32 +46,32 @@ void ConnectivityManager::runAllTests(const ServerConfig &config)
         m_testQueue.enqueue(task);
     }
 
-    if (config.tlsPort() > 0) {
-        TestTask task;
-        task.name = QString("TLS:%1:%2").arg(config.host()).arg(config.tlsPort());
-        task.checker = new TlsConnectivityChecker(this);
-        task.host = config.host();
-        task.port = config.tlsPort();
-        m_testQueue.enqueue(task);
-    }
+    // if (config.tlsPort() > 0) {
+    //     TestTask task;
+    //     task.name = QString("TLS:%1:%2").arg(config.host()).arg(config.tlsPort());
+    //     task.checker = new TlsConnectivityChecker(this);
+    //     task.host = config.host();
+    //     task.port = config.tlsPort();
+    //     m_testQueue.enqueue(task);
+    // }
 
-    if (config.wssPort() > 0) {
-        TestTask task;
-        task.name = QString("WSS:%1:%2").arg(config.host()).arg(config.wssPort());
-        task.checker = new WssConnectivityChecker(this);
-        task.host = config.host();
-        task.port = config.wssPort();
-        m_testQueue.enqueue(task);
-    }
+    // if (config.wssPort() > 0) {
+    //     TestTask task;
+    //     task.name = QString("WSS:%1:%2").arg(config.host()).arg(config.wssPort());
+    //     task.checker = new WssConnectivityChecker(this);
+    //     task.host = config.host();
+    //     task.port = config.wssPort();
+    //     m_testQueue.enqueue(task);
+    // }
 
-    for (int port : config.rtpPorts()) {
-        TestTask task;
-        task.name = QString("RTP:%1:%2").arg(config.host()).arg(port);
-        task.checker = new RtpConnectivityChecker(this);
-        task.host = config.host();
-        task.port = port;
-        m_testQueue.enqueue(task);
-    }
+    // for (int port : config.rtpPorts()) {
+    //     TestTask task;
+    //     task.name = QString("RTP:%1:%2").arg(config.host()).arg(port);
+    //     task.checker = new RtpConnectivityChecker(this);
+    //     task.host = config.host();
+    //     task.port = port;
+    //     m_testQueue.enqueue(task);
+    // }
 
     emit progressUpdate(QString("Starting connectivity tests (%1 tests queued)").arg(m_testQueue.size()));
     runNextTest();

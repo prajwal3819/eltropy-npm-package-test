@@ -8,6 +8,8 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QLabel>
+#include <QGridLayout>
+#include <QRadioButton>
 #include "connectivity/connectivitymanager.h"
 #include "connectivity/multipingchecker.h"
 #include "models/serverconfig.h"
@@ -19,6 +21,7 @@
 
 enum class CallState;
 struct VoIPQualityMetrics;
+class VoIPQualityChecker;
 
 class MainWindow : public QMainWindow
 {
@@ -30,18 +33,22 @@ public:
 
 private slots:
     void onTestAllClicked();
+    void onCancelAllTestsClicked();
     void onTestBlockRequested(ConnectivityResult::Protocol protocol, const QString &host, int port);
     void onMultiPingProgress(int current, int total);
     void onMultiPingCompleted(int successCount, int totalAttempts, const QList<ConnectivityResult> &results);
+    void onParallelTestCompleted(const QString &key, int successCount, int totalAttempts, const QList<ConnectivityResult> &results);
     void onMultiPingAttemptCompleted(const ConnectivityResult &result);
+    void onConnectivityChecked(const ConnectivityResult &result);
     
     // SIP Registration slots
     void onSipTestAllClicked();
+    void onSipUnregisterAllClicked();
     void onSipBlockRequested(SipTransportType transportType, const QString &host, int port);
     void onSipUnregisterRequested(SipTransportType transportType, const QString &host, int port);
     void onSipRegistrationStarted();
     void onSipRegistrationSucceeded(const QString &accountKey, const QString &message, int expiresIn);
-    void onSipRegistrationFailed(const QString &error);
+    void onSipRegistrationFailed(const QString &accountKey, const QString &error);
     void onSipUnregistered();
     void onSipStatusChanged(const QString &status);
     void updateSipTimers();
@@ -72,6 +79,7 @@ private slots:
     
     // VoIP Quality slots
     void onStartVoipQualityTest();
+    void onCancelVoipQualityTest();
     void onVoipQualityTestCompleted(const ConnectivityResult &result);
     void onVoipQualityProgressUpdate(const QString &message);
     void onVoipQualityMetricsUpdated(const VoIPQualityMetrics &metrics);
@@ -90,7 +98,13 @@ private:
     int m_currentTestIndex;
     bool m_testingAll;
     QString m_currentTestKey;
+    
+    // For parallel test execution
+    QMap<QString, MultiPingChecker*> m_activeCheckers;
+    int m_totalTestsToRun;
+    int m_completedTests;
     QTextEdit *m_logsTextEdit;
+    QSpinBox *m_testAttempts;
     
     // SIP Registration members
     SipRegistrationManager *m_sipManager;
@@ -145,6 +159,15 @@ private:
     QPushButton *m_muteBtn;
     QLabel *m_callStatusLabel;
     QLabel *m_registrationStatusLabel;
+    QLabel *m_domainDisplayLabel;
+    QLabel *m_callInstructionLabel;
+    QRadioButton *m_oneWayAudioRadio;
+    QRadioButton *m_twoWayAudioRadio;
+    QRadioButton *m_customNumberRadio;
+    QDateTime m_callRegistrationExpiryTime;
+    void updateCallRegistrationTimer();
+    void updateCallDomainDisplay();
+    void updateCallInstructions();
     
     // Advanced Checks
     QWidget *m_advancedChecksWidget;
@@ -160,7 +183,13 @@ private:
     QWidget *m_voipQualityWidget;
     QLineEdit *m_voipQualityServerEdit;
     QSpinBox *m_voipQualityPortSpin;
+    QSpinBox *m_voipPacketCountSpin;
+    QSpinBox *m_voipPacketIntervalSpin;
+    QSpinBox *m_voipPacketSizeSpin;
+    QSpinBox *m_voipTimeoutSpin;
     QPushButton *m_startVoipQualityBtn;
+    QPushButton *m_cancelVoipQualityBtn;
+    VoIPQualityChecker *m_activeVoipChecker;
     QLabel *m_jitterValueLabel;
     QLabel *m_packetLossValueLabel;
     QLabel *m_latencyValueLabel;
@@ -168,6 +197,20 @@ private:
     QLabel *m_burstLossValueLabel;
     QLabel *m_congestionValueLabel;
     QLabel *m_voipQualityStatusLabel;
+    
+    QRadioButton *m_prodRadio;
+    QRadioButton *m_uatRadio;
+    void onEnvironmentChanged();
+    
+    // Connectivity tab widgets for dynamic updates
+    QGridLayout *m_connectivityGridLayout;
+    QWidget *m_connectivityScrollContent;
+    void rebuildConnectivityBlocks();
+    
+    // SIP registration tab widgets for dynamic updates
+    QGridLayout *m_sipBlocksLayout;
+    QWidget *m_sipScrollWidget;
+    void rebuildSipRegistrationBlocks();
 };
 
 #endif

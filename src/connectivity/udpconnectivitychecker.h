@@ -5,6 +5,7 @@
 #include <QUdpSocket>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <QHostInfo>
 
 class UdpConnectivityChecker : public IConnectivityChecker
 {
@@ -20,6 +21,7 @@ public:
 private slots:
     void onReadyRead();
     void onTimeout();
+    void onHostLookup(const QHostInfo &hostInfo);
     void sendProbe();
 
 private:
@@ -31,8 +33,11 @@ private:
     QTimer *m_retryTimer;
     QElapsedTimer m_elapsedTimer;
     QString m_host;
+    QHostAddress m_resolvedAddress;
     int m_port;
     int m_retryCount;
+    bool m_isResolving;
+    bool m_completed;
     static const int MAX_RETRIES = 3;
 };
 

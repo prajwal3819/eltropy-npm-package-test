@@ -17,6 +17,7 @@ public:
         Testing,
         AllSuccess,
         PartialSuccess,
+        ConnectionRefused,
         AllFailed
     };
 

@@ -56,15 +56,22 @@ void TcpConnectivityChecker::onConnected()
 
 void TcpConnectivityChecker::onError(QAbstractSocket::SocketError error)
 {
-    Q_UNUSED(error);
-    
     if (!m_socket) {
         return;
     }
     
     QString errorMsg = m_socket->errorString();
+    ConnectivityResult::Status status;
+    
+    // Distinguish connection refused from other errors
+    if (error == QAbstractSocket::ConnectionRefusedError) {
+        status = ConnectivityResult::ConnectionRefused;
+    } else {
+        status = ConnectivityResult::Failed;
+    }
+    
     ConnectivityResult result(ConnectivityResult::TCP, m_host, m_port,
-                             ConnectivityResult::Failed, errorMsg);
+                             status, errorMsg);
     emit connectivityChecked(result);
     
     cleanup();

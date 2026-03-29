@@ -3,6 +3,7 @@
 
 #include "connectivity/sipalgchecker.h"
 #include "connectivity/nattypechecker.h"
+#include "models/environmentconfig.h"
 
 void MainWindow::createAdvancedChecksTab()
 {
@@ -15,7 +16,7 @@ void MainWindow::createAdvancedChecksTab()
     // Title
     QLabel *titleLabel = new QLabel("Advanced Network Diagnostics");
     QFont titleFont = titleLabel->font();
-    titleFont.setPointSize(16);
+    titleFont.setPointSize(23);
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
     titleLabel->setStyleSheet("color: #d4d4d4; padding: 10px;");
@@ -44,7 +45,7 @@ void MainWindow::createAdvancedChecksTab()
         "    border-radius: 5px;"
         "    margin-top: 10px;"
         "    padding: 15px;"
-        "    font-size: 12pt;"
+        "    font-size: 20pt;"
         "    font-weight: bold;"
         "    color: #d4d4d4;"
         "}"
@@ -83,8 +84,8 @@ void MainWindow::createAdvancedChecksTab()
     inputLayout->addWidget(hostLabel);
     
     m_sipAlgHostEdit = new QLineEdit();
-    m_sipAlgHostEdit->setPlaceholderText("e.g., voip.eltropy.com");
-    m_sipAlgHostEdit->setText("voip.eltropy.com");
+    m_sipAlgHostEdit->setPlaceholderText("e.g., " + EnvironmentConfig::instance().getSipEndpoint());
+    m_sipAlgHostEdit->setText(EnvironmentConfig::instance().getSipEndpoint());
     m_sipAlgHostEdit->setStyleSheet(
         "QLineEdit {"
         "    background-color: #1e1e1e;"
@@ -178,7 +179,7 @@ void MainWindow::createAdvancedChecksTab()
         "    border-radius: 5px;"
         "    margin-top: 10px;"
         "    padding: 15px;"
-        "    font-size: 12pt;"
+        "    font-size: 20pt;"
         "    font-weight: bold;"
         "    color: #d4d4d4;"
         "}"

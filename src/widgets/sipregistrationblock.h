@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
+#include <QProgressBar>
 #include "../sip/sipregistrationmanager.h"
 
 class SipRegistrationBlock : public QWidget
@@ -27,8 +28,10 @@ public:
     void setStatus(Status status);
     void setMessage(const QString &message);
     void setExpiryTime(int seconds);
+    void setProgress(int current, int total);
     void reset();
     
+    Status status() const { return m_status; }
     QString transport() const { return m_transport; }
     QString host() const { return m_host; }
     int port() const { return m_port; }
@@ -59,6 +62,7 @@ private:
     QLabel *m_timerLabel;
     QPushButton *m_testButton;
     QPushButton *m_unregisterButton;
+    QProgressBar *m_progressBar;
 };
 
 #endif // SIPREGISTRATIONBLOCK_H

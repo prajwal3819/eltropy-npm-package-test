@@ -36,6 +36,7 @@ QString ConnectivityResult::statusString() const
         case Success: return "Success";
         case Failed: return "Failed";
         case Timeout: return "Timeout";
+        case ConnectionRefused: return "Connection Refused";
         case InProgress: return "In Progress";
         default: return "Unknown";
     }

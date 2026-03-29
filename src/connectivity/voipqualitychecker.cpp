@@ -14,6 +14,9 @@ VoIPQualityChecker::VoIPQualityChecker(QObject *parent)
     , m_totalPacketsSent(0)
     , m_packetsReceived(0)
     , m_lastTransit(0)
+    , m_packetsToSend(100)           // Default: 100 packets
+    , m_packetIntervalMs(20)         // Default: 20ms (50 packets/sec)
+    , m_packetSize(160)              // Default: 160 bytes (typical VoIP)
 {
 }
 
@@ -34,7 +37,7 @@ void VoIPQualityChecker::checkConnectivity(const QString &host, int port, int ti
     m_packets.clear();
     m_jitterSamples.clear();
     m_packetReceived.clear();
-    m_packetReceived.resize(PACKETS_TO_SEND, false);
+    m_packetReceived.resize(m_packetsToSend, false);
 
     emit progressUpdate("Resolving host: " + host);
     
@@ -73,7 +76,8 @@ void VoIPQualityChecker::checkConnectivity(const QString &host, int port, int ti
         return;
     }
 
-    emit progressUpdate(QString("Starting VoIP quality test (%1 packets)...").arg(PACKETS_TO_SEND));
+    emit progressUpdate(QString("Starting VoIP quality test: %1 packets, %2ms interval, %3 bytes/packet")
+                       .arg(m_packetsToSend).arg(m_packetIntervalMs).arg(m_packetSize));
 
     // Setup timeout timer
     m_timer = new QTimer(this);
@@ -86,7 +90,7 @@ void VoIPQualityChecker::checkConnectivity(const QString &host, int port, int ti
     connect(m_sendTimer, &QTimer::timeout, this, &VoIPQualityChecker::sendTestPacket);
     
     m_startTime = QDateTime::currentMSecsSinceEpoch();
-    m_sendTimer->start(PACKET_INTERVAL_MS);
+    m_sendTimer->start(m_packetIntervalMs);
     
     // Send first packet immediately
     sendTestPacket();
@@ -115,8 +119,8 @@ void VoIPQualityChecker::cancel()
 
 void VoIPQualityChecker::sendTestPacket()
 {
-    if (!m_socket || m_totalPacketsSent >= PACKETS_TO_SEND) {
-        if (m_totalPacketsSent >= PACKETS_TO_SEND) {
+    if (!m_socket || m_totalPacketsSent >= m_packetsToSend) {
+        if (m_totalPacketsSent >= m_packetsToSend) {
             m_sendTimer->stop();
             // Wait a bit for remaining packets, then calculate final metrics
             QTimer::singleShot(1000, this, [this]() {
@@ -137,7 +141,7 @@ void VoIPQualityChecker::sendTestPacket()
                  .arg(m_currentMetrics.burstPacketLoss, 0, 'f', 2)
                  .arg(m_currentMetrics.congestionDetected ? "Detected" : "None")
                  .arg(m_packetsReceived)
-                 .arg(PACKETS_TO_SEND);
+                 .arg(m_packetsToSend);
                 
                 emit progressUpdate("Test completed");
                 emit connectivityChecked(ConnectivityResult(
@@ -161,8 +165,12 @@ void VoIPQualityChecker::sendTestPacket()
         m_totalPacketsSent++;
         m_sequenceNumber++;
         
-        if (m_totalPacketsSent % 20 == 0) {
-            emit progressUpdate(QString("Sent %1/%2 packets...").arg(m_totalPacketsSent).arg(PACKETS_TO_SEND));
+        // Update progress every 10% or every 10 packets, whichever is larger
+        int updateInterval = qMax(10, m_packetsToSend / 10);
+        if (m_totalPacketsSent % updateInterval == 0) {
+            double percentComplete = (m_totalPacketsSent * 100.0) / m_packetsToSend;
+            emit progressUpdate(QString("Sending packets: %1/%2 (%3%)")
+                              .arg(m_totalPacketsSent).arg(m_packetsToSend).arg(percentComplete, 0, 'f', 0));
         }
     }
 }
@@ -178,8 +186,10 @@ QByteArray VoIPQualityChecker::createTestPacket(quint32 sequence)
     stream << sequence;
     stream << QDateTime::currentMSecsSinceEpoch();
     
-    // Add some payload (simulate typical VoIP packet size ~160 bytes)
-    for (int i = 0; i < 30; i++) {
+    // Add payload to reach desired packet size
+    // Header is 16 bytes (magic + sequence + timestamp), so add (size - 16) / 4 integers
+    int payloadInts = qMax(0, (m_packetSize - 16) / 4);
+    for (int i = 0; i < payloadInts; i++) {
         stream << quint32(QRandomGenerator::global()->generate());
     }
     
@@ -230,7 +240,7 @@ void VoIPQualityChecker::onReadyRead()
             info.receiveTime = receiveTime;
             m_packets.append(info);
             
-            if (sequence < PACKETS_TO_SEND) {
+            if (sequence < static_cast<quint32>(m_packetsToSend)) {
                 m_packetReceived[sequence] = true;
             }
             

@@ -69,6 +69,7 @@ HEADERS += src/mainwindow.h \
            src/connectivity/nattypechecker.h \
            src/connectivity/voipqualitychecker.h \
            src/models/connectivityresult.h \
+           src/models/environmentconfig.h \
            src/widgets/connectivitytestblock.h \
            src/widgets/sipregistrationblock.h \
            src/sip/sipcallmanager.h \
@@ -79,6 +80,7 @@ HEADERS += src/mainwindow.h \
 SOURCES += src/main.cpp \
            src/mainwindow.cpp \
            src/models/connectivityresult.cpp \
+           src/models/environmentconfig.cpp \
            src/connectivity/connectivitymanager.cpp \
            src/connectivity/multipingchecker.cpp \
            src/connectivity/rtpconnectivitychecker.cpp \

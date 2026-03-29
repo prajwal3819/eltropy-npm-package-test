@@ -2,9 +2,17 @@
 #include <QHostAddress>
 #include <QNetworkDatagram>
 
+namespace {
+bool isSipResponse(const QByteArray &data)
+{
+    return data.startsWith("SIP/2.0 ");
+}
+}
+
 UdpConnectivityChecker::UdpConnectivityChecker(QObject *parent)
     : IConnectivityChecker(parent), m_socket(nullptr), m_timeoutTimer(nullptr),
-      m_retryTimer(nullptr), m_port(0), m_retryCount(0)
+      m_retryTimer(nullptr), m_port(0), m_retryCount(0), m_isResolving(false),
+      m_completed(false)
 {
 }
 
@@ -20,6 +28,8 @@ void UdpConnectivityChecker::checkConnectivity(const QString &host, int port, in
     m_host = host;
     m_port = port;
     m_retryCount = 0;
+    m_isResolving = false;
+    m_completed = false;
 
     m_socket = new QUdpSocket(this);
     m_timeoutTimer = new QTimer(this);
@@ -43,14 +53,30 @@ void UdpConnectivityChecker::checkConnectivity(const QString &host, int port, in
 
     emit progressUpdate(QString("Checking UDP connectivity to %1:%2...").arg(host).arg(port));
 
-    m_elapsedTimer.start();
-    sendProbe();
+    // Try to parse as IP address first
+    m_resolvedAddress = QHostAddress(m_host);
     
-    if (m_retryTimer) {
-        m_retryTimer->start(1000);
-    }
-    if (m_timeoutTimer) {
-        m_timeoutTimer->start(timeout);
+    // If not a valid IP, resolve hostname
+    if (m_resolvedAddress.isNull()) {
+        emit progressUpdate(QString("Resolving hostname %1...").arg(m_host));
+        m_isResolving = true;
+        QHostInfo::lookupHost(m_host, this, SLOT(onHostLookup(QHostInfo)));
+        
+        // Start timeout timer during DNS lookup
+        if (m_timeoutTimer) {
+            m_timeoutTimer->start(timeout);
+        }
+    } else {
+        // Already have IP address, start sending probes
+        m_elapsedTimer.start();
+        sendProbe();
+        
+        if (m_retryTimer) {
+            m_retryTimer->start(1000);
+        }
+        if (m_timeoutTimer) {
+            m_timeoutTimer->start(timeout);
+        }
     }
 }
 
@@ -59,9 +85,68 @@ void UdpConnectivityChecker::cancel()
     cleanup();
 }
 
+void UdpConnectivityChecker::onHostLookup(const QHostInfo &hostInfo)
+{
+    if (m_completed) {
+        return;
+    }
+
+    m_isResolving = false;
+    
+    if (hostInfo.error() != QHostInfo::NoError) {
+        m_completed = true;
+        ConnectivityResult result(ConnectivityResult::UDP, m_host, m_port,
+                                 ConnectivityResult::Failed,
+                                 QString("DNS lookup failed: %1").arg(hostInfo.errorString()));
+        emit connectivityChecked(result);
+        cleanup();
+        return;
+    }
+    
+    QList<QHostAddress> addresses = hostInfo.addresses();
+    if (addresses.isEmpty()) {
+        m_completed = true;
+        ConnectivityResult result(ConnectivityResult::UDP, m_host, m_port,
+                                 ConnectivityResult::Failed,
+                                 "No IP addresses found for hostname");
+        emit connectivityChecked(result);
+        cleanup();
+        return;
+    }
+    
+    // Use the first IPv4 address, or first address if no IPv4 found
+    m_resolvedAddress = addresses.first();
+    for (const QHostAddress &addr : addresses) {
+        if (addr.protocol() == QAbstractSocket::IPv4Protocol) {
+            m_resolvedAddress = addr;
+            break;
+        }
+    }
+    
+    emit progressUpdate(QString("Resolved %1 to %2").arg(m_host).arg(m_resolvedAddress.toString()));
+    
+    // Now start sending probes
+    m_elapsedTimer.start();
+    sendProbe();
+    
+    if (m_retryTimer) {
+        m_retryTimer->start(1000);
+    }
+}
+
 void UdpConnectivityChecker::sendProbe()
 {
-    if (!m_socket || !m_retryTimer) {
+    if (!m_socket || !m_retryTimer || m_completed) {
+        return;
+    }
+    
+    // Don't send if still resolving hostname
+    if (m_isResolving) {
+        return;
+    }
+    
+    // Don't send if we don't have a valid address
+    if (m_resolvedAddress.isNull()) {
         return;
     }
     
@@ -71,16 +156,11 @@ void UdpConnectivityChecker::sendProbe()
     }
 
     QByteArray probe = createSipOptionsProbe();
-    QHostAddress hostAddr(m_host);
     
-    // Try to resolve hostname if it's not an IP address
-    if (hostAddr.isNull()) {
-        emit progressUpdate(QString("Resolving hostname %1...").arg(m_host));
-    }
-    
-    qint64 sent = m_socket->writeDatagram(probe, QHostAddress(m_host), m_port);
+    qint64 sent = m_socket->writeDatagram(probe, m_resolvedAddress, m_port);
     
     if (sent == -1) {
+        m_completed = true;
         QString errorMsg = QString("Failed to send UDP packet: %1").arg(m_socket->errorString());
         ConnectivityResult result(ConnectivityResult::UDP, m_host, m_port,
                                  ConnectivityResult::Failed, errorMsg);
@@ -90,30 +170,36 @@ void UdpConnectivityChecker::sendProbe()
     }
 
     m_retryCount++;
-    emit progressUpdate(QString("Sent UDP probe %1/%2 to %3:%4 (%5 bytes)")
-                       .arg(m_retryCount).arg(MAX_RETRIES).arg(m_host).arg(m_port).arg(sent));
+    emit progressUpdate(QString("Sent UDP probe %1/%2 to %3 (%4:%5) - %6 bytes")
+                       .arg(m_retryCount).arg(MAX_RETRIES)
+                       .arg(m_host).arg(m_resolvedAddress.toString()).arg(m_port).arg(sent));
 }
 
 void UdpConnectivityChecker::onReadyRead()
 {
-    if (!m_socket) {
+    if (!m_socket || m_completed) {
         return;
     }
     
     while (m_socket->hasPendingDatagrams()) {
         QNetworkDatagram datagram = m_socket->receiveDatagram();
-        
-        if (datagram.senderAddress().toString() == m_host || 
-            datagram.senderAddress().toString() == QHostAddress(m_host).toString()) {
-            
+        const QByteArray data = datagram.data();
+        const bool matchesTargetPort = datagram.senderPort() == m_port;
+        const bool matchesResolvedAddress = datagram.senderAddress() == m_resolvedAddress;
+        const bool looksLikeSipResponse = isSipResponse(data);
+
+        if (matchesResolvedAddress || (matchesTargetPort && looksLikeSipResponse)) {
+            m_completed = true;
             qint64 responseTime = m_elapsedTimer.elapsed();
-            
+
             ConnectivityResult result(ConnectivityResult::UDP, m_host, m_port,
                                      ConnectivityResult::Success,
-                                     QString("UDP response received (%1 bytes)")
+                                     QString("UDP response received from %1:%2 (%3 bytes)")
+                                     .arg(datagram.senderAddress().toString())
+                                     .arg(datagram.senderPort())
                                      .arg(datagram.data().size()));
             result.setResponseTime(responseTime);
-            
+
             emit connectivityChecked(result);
             cleanup();
             return;
@@ -123,6 +209,11 @@ void UdpConnectivityChecker::onReadyRead()
 
 void UdpConnectivityChecker::onTimeout()
 {
+    if (m_completed) {
+        return;
+    }
+
+    m_completed = true;
     ConnectivityResult result(ConnectivityResult::UDP, m_host, m_port,
                              ConnectivityResult::Timeout,
                              QString("No UDP response received after %1 attempts")
@@ -134,28 +225,30 @@ void UdpConnectivityChecker::onTimeout()
 void UdpConnectivityChecker::cleanup()
 {
     if (m_retryTimer) {
-        m_retryTimer->stop();
-        m_retryTimer->blockSignals(true);
-        m_retryTimer->disconnect();
-        delete m_retryTimer;
+        QTimer *timer = m_retryTimer;
         m_retryTimer = nullptr;
+        timer->stop();
+        disconnect(timer, nullptr, this, nullptr);
+        timer->deleteLater();
     }
 
     if (m_timeoutTimer) {
-        m_timeoutTimer->stop();
-        m_timeoutTimer->blockSignals(true);
-        m_timeoutTimer->disconnect();
-        delete m_timeoutTimer;
+        QTimer *timer = m_timeoutTimer;
         m_timeoutTimer = nullptr;
+        timer->stop();
+        disconnect(timer, nullptr, this, nullptr);
+        timer->deleteLater();
     }
 
     if (m_socket) {
-        m_socket->blockSignals(true);
-        m_socket->close();
-        m_socket->disconnect();
-        delete m_socket;
+        QUdpSocket *socket = m_socket;
         m_socket = nullptr;
+        disconnect(socket, nullptr, this, nullptr);
+        socket->close();
+        socket->deleteLater();
     }
+
+    m_isResolving = false;
 }
 
 QByteArray UdpConnectivityChecker::createSipOptionsProbe()

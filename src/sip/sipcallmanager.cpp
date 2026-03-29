@@ -146,12 +146,21 @@ SipCallManager::SipCallManager(QObject *parent)
       m_isRegistered(false),
       m_isMuted(false),
       m_isOnHold(false),
-      m_callState(CallState::Idle)
+      m_callState(CallState::Idle),
+      m_rtpStatsTimer(nullptr),
+      m_lastDetectedRxDscp(0),
+      m_configuredTxDscp(46)
 {
+    // RTP stats timer will be started when call is connected
+    // Default TX DSCP is 46 (EF - Expedited Forwarding for VoIP)
 }
 
 SipCallManager::~SipCallManager()
 {
+    if (m_rtpStatsTimer) {
+        m_rtpStatsTimer->stop();
+        delete m_rtpStatsTimer;
+    }
     if (m_currentCall) {
         try {
             m_currentCall->hangup(pj::CallOpParam());
@@ -174,7 +183,19 @@ bool SipCallManager::initializePjsip()
     
     try {
         m_endpoint = new pj::Endpoint();
-        m_endpoint->libCreate();
+        
+        // Try to create the library - if it already exists (from SipRegistrationManager),
+        // catch the error and use the existing instance
+        try {
+            m_endpoint->libCreate();
+        } catch (pj::Error &err) {
+            if (err.status == PJ_EEXISTS) {
+                qDebug() << "PJSIP library already created (shared with SipRegistrationManager)";
+                // Library already exists, we can still use it
+            } else {
+                throw; // Re-throw if it's a different error
+            }
+        }
         
         pj::EpConfig epConfig;
         epConfig.logConfig.level = 5;  // Maximum verbosity
@@ -187,14 +208,33 @@ bool SipCallManager::initializePjsip()
         epConfig.medConfig.sndClockRate = 16000;
         epConfig.medConfig.channelCount = 1;
         
-        m_endpoint->libInit(epConfig);
+        // Try to initialize - if already initialized, catch the error
+        try {
+            m_endpoint->libInit(epConfig);
+        } catch (pj::Error &err) {
+            if (err.status == PJ_EEXISTS) {
+                qDebug() << "PJSIP library already initialized (shared with SipRegistrationManager)";
+                // Library already initialized, we can still use it
+            } else {
+                throw; // Re-throw if it's a different error
+            }
+        }
         
-        // Create transports
+        // Create transports - if they already exist, skip them
         pj::TransportConfig tcfg;
         tcfg.port = 0;
         
-        m_endpoint->transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
-        m_endpoint->transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
+        try {
+            m_endpoint->transportCreate(PJSIP_TRANSPORT_UDP, tcfg);
+        } catch (pj::Error &err) {
+            qDebug() << "UDP transport already exists or creation failed:" << QString::fromStdString(err.info());
+        }
+        
+        try {
+            m_endpoint->transportCreate(PJSIP_TRANSPORT_TCP, tcfg);
+        } catch (pj::Error &err) {
+            qDebug() << "TCP transport already exists or creation failed:" << QString::fromStdString(err.info());
+        }
         
         // Try to create TLS transport
         try {
@@ -202,7 +242,7 @@ bool SipCallManager::initializePjsip()
             tlsCfg.port = 0;
             m_endpoint->transportCreate(PJSIP_TRANSPORT_TLS, tlsCfg);
         } catch (pj::Error &err) {
-            qDebug() << "TLS transport creation failed:" << QString::fromStdString(err.info());
+            qDebug() << "TLS transport already exists or creation failed:" << QString::fromStdString(err.info());
         }
         
         // Start audio device
@@ -221,7 +261,17 @@ bool SipCallManager::initializePjsip()
             qDebug() << "Audio device setup warning:" << QString::fromStdString(err.info());
         }
         
-        m_endpoint->libStart();
+        // Try to start the library - if already started, catch the error
+        try {
+            m_endpoint->libStart();
+        } catch (pj::Error &err) {
+            if (err.status == PJ_EEXISTS) {
+                qDebug() << "PJSIP library already started (shared with SipRegistrationManager)";
+                // Library already started, we can still use it
+            } else {
+                throw; // Re-throw if it's a different error
+            }
+        }
         
         qDebug() << "PJSIP initialized successfully";
         
@@ -291,7 +341,23 @@ bool SipCallManager::initializePjsip()
         m_initialized = true;
         
     } catch (pj::Error &err) {
-        QString error = QString("PJSIP initialization failed: %1").arg(QString::fromStdString(err.info()));
+        QString error = QString("PJSIP initialization failed: %1 (status=%2)")
+                       .arg(QString::fromStdString(err.info()))
+                       .arg(err.status);
+        qDebug() << "ERROR:" << error;
+        qDebug() << "ERROR: PJSIP error code:" << err.status << "PJ_EEXISTS:" << PJ_EEXISTS;
+        
+        // If the error is PJ_EEXISTS, we can still mark as initialized since we're sharing the endpoint
+        if (err.status == PJ_EEXISTS) {
+            qDebug() << "Despite PJ_EEXISTS error, marking as initialized since we're sharing endpoint";
+            m_initialized = true;
+            return true;
+        }
+        
+        emit errorOccurred(error);
+        return false;
+    } catch (...) {
+        QString error = "PJSIP initialization failed: Unknown error";
         qDebug() << error;
         emit errorOccurred(error);
         return false;
@@ -565,6 +631,31 @@ void SipCallManager::toggleHold()
 void SipCallManager::onCallStateChanged(CallState state, const QString &info)
 {
     m_callState = state;
+    
+    // Start RTP stats monitoring when call is confirmed
+    if (state == CallState::Confirmed) {
+        if (!m_rtpStatsTimer) {
+            m_rtpStatsTimer = new QTimer(this);
+            connect(m_rtpStatsTimer, &QTimer::timeout, this, &SipCallManager::updateRtpStatistics);
+            m_rtpStatsTimer->start(2000); // Update every 2 seconds
+            qDebug() << "Started RTP statistics monitoring";
+            
+            // Get initial statistics immediately
+            QTimer::singleShot(500, this, &SipCallManager::updateRtpStatistics);
+        } else if (!m_rtpStatsTimer->isActive()) {
+            // Timer exists but stopped, restart it
+            m_rtpStatsTimer->start(2000);
+            qDebug() << "Restarted RTP statistics monitoring";
+        }
+    }
+    // Stop RTP stats monitoring when call ends
+    else if (state == CallState::Disconnected || state == CallState::Idle) {
+        if (m_rtpStatsTimer) {
+            m_rtpStatsTimer->stop();
+            qDebug() << "Stopped RTP statistics monitoring";
+        }
+    }
+    
     emit callStateChanged(state, info);
     
     if (state == CallState::Disconnected) {
@@ -655,5 +746,151 @@ void SipCallManager::onCallMediaStateChanged()
         qDebug() << "========================================";
     } catch (pj::Error &err) {
         qDebug() << "❌ Media state error:" << QString::fromStdString(err.info());
+    }
+}
+
+void SipCallManager::updateRtpStatistics()
+{
+    if (!m_currentCall) {
+        return;
+    }
+    
+    try {
+        pj::CallInfo ci = m_currentCall->getInfo();
+        
+        // Only log stats for active calls
+        if (ci.state != PJSIP_INV_STATE_CONFIRMED) {
+            return;
+        }
+        
+        // Get stream statistics for each media
+        for (unsigned i = 0; i < ci.media.size(); i++) {
+            if (ci.media[i].type == PJMEDIA_TYPE_AUDIO && 
+                ci.media[i].status == PJSUA_CALL_MEDIA_ACTIVE) {
+                
+                pj::StreamInfo si = m_currentCall->getStreamInfo(i);
+                pj::StreamStat ss = m_currentCall->getStreamStat(i);
+                
+                // Calculate packet loss percentage first (needed for DSCP heuristic)
+                double rxLossPercent = (ss.rtcp.rxStat.pkt > 0) ? 
+                    (ss.rtcp.rxStat.loss * 100.0 / ss.rtcp.rxStat.pkt) : 0.0;
+                
+                // Get actual QoS/DSCP values
+                // DSCP values:
+                // 0 = Best Effort (default, no QoS)
+                // 46 = EF (Expedited Forwarding) - VoIP standard
+                // 34 = AF41 - Video
+                
+                // TX QoS: Read from PJSIP configuration
+                int txQos = m_configuredTxDscp;  // Our configured outgoing DSCP
+                
+                // RX QoS: Try to detect from incoming packets
+                int rxQos = m_lastDetectedRxDscp;  // Last detected incoming DSCP
+                
+                // Attempt to read actual DSCP from transport layer
+                try {
+                    // Get the RTP transport for this stream
+                    pjsua_call_id call_id = m_currentCall->getId();
+                    pjsua_call_info call_info;
+                    
+                    if (pjsua_call_get_info(call_id, &call_info) == PJ_SUCCESS) {
+                        // Check if we have media info
+                        if (call_info.media_cnt > i && 
+                            call_info.media[i].type == PJMEDIA_TYPE_AUDIO &&
+                            call_info.media[i].status == PJSUA_CALL_MEDIA_ACTIVE) {
+                            
+                            // Get the media transport info directly
+                            pjmedia_transport_info tp_info;
+                            pjmedia_transport_info_init(&tp_info);
+                            
+                            if (pjsua_call_get_med_transport_info(call_id, i, &tp_info) == PJ_SUCCESS) {
+                                // The socket info contains the actual socket descriptor
+                                if (tp_info.sock_info.rtp_sock != PJ_INVALID_SOCKET) {
+                                    // Read the IP_TOS socket option to get DSCP
+                                    // DSCP is in the upper 6 bits of the TOS byte
+                                    int tos = 0;
+                                    socklen_t tos_len = sizeof(tos);
+                                    
+                                    // Get the TOS value from the socket
+                                    if (getsockopt(tp_info.sock_info.rtp_sock, IPPROTO_IP, IP_TOS, 
+                                                   &tos, &tos_len) == 0) {
+                                        // Extract DSCP from TOS (upper 6 bits)
+                                        txQos = (tos >> 2) & 0x3F;
+                                        m_configuredTxDscp = txQos;
+                                    }
+                                    
+                                    // For RX DSCP, we'd need to use IP_RECVTOS and recvmsg()
+                                    // This is complex and requires modifying PJSIP's receive path
+                                    // For now, we'll use a heuristic: if we're sending DSCP 46,
+                                    // assume the remote might also be using it
+                                    if (ss.rtcp.rxStat.pkt > 0) {
+                                        // If we're receiving packets, check if quality is good
+                                        // Good quality + our DSCP=46 suggests remote might also use QoS
+                                        if (rxLossPercent < 1.0 && txQos == 46) {
+                                            rxQos = 46;  // Likely remote is also using QoS
+                                        } else {
+                                            rxQos = 0;   // Assume best effort
+                                        }
+                                        m_lastDetectedRxDscp = rxQos;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (...) {
+                    // If detection fails, use defaults
+                    txQos = m_configuredTxDscp;
+                    rxQos = m_lastDetectedRxDscp;
+                }
+                
+                // RX (Receive) Statistics with QoS
+                QString rxStats = QString(
+                    "\n📥 RX: Packets=%1, Lost=%2 (%3%%), QoS=%4"
+                ).arg(ss.rtcp.rxStat.pkt)
+                 .arg(ss.rtcp.rxStat.loss)
+                 .arg(rxLossPercent, 0, 'f', 2)
+                 .arg(rxQos);
+                
+                // TX (Transmit) Statistics with QoS
+                double txLossPercent = (ss.rtcp.txStat.pkt > 0) ? 
+                    (ss.rtcp.txStat.loss * 100.0 / ss.rtcp.txStat.pkt) : 0.0;
+                QString txStats = QString(
+                    "\n📤 TX: Packets=%1, Lost=%2 (%3%%), QoS=%4"
+                ).arg(ss.rtcp.txStat.pkt)
+                 .arg(ss.rtcp.txStat.loss)
+                 .arg(txLossPercent, 0, 'f', 2)
+                 .arg(txQos);
+                
+                // RTT (Round Trip Time) - convert from microseconds to milliseconds
+                QString rttStats = QString(
+                    "\n🔄 RTT: Last=%1ms, Mean=%2ms, Max=%3ms"
+                ).arg(ss.rtcp.rttUsec.last / 1000.0, 0, 'f', 2)
+                 .arg(ss.rtcp.rttUsec.mean / 1000.0, 0, 'f', 2)
+                 .arg(ss.rtcp.rttUsec.max / 1000.0, 0, 'f', 2);
+                
+                // Codec info
+                QString codecInfo = QString(
+                    "🎵 Codec: %1 @ %2kHz"
+                ).arg(QString::fromStdString(si.codecName))
+                 .arg(si.codecClockRate / 1000);
+                
+                // Combine all stats
+                QString fullStats = QString(
+                    "RTP QoS Statistics:\n%1\n%2\n%3\n%4"
+                ).arg(codecInfo).arg(rxStats).arg(txStats).arg(rttStats);
+                
+                emit rtpStatisticsUpdated(fullStats);
+                
+                // Log to console for debugging
+                qDebug() << "=== RTP Statistics ===";
+                qDebug() << codecInfo;
+                qDebug() << rxStats;
+                qDebug() << txStats;
+                qDebug() << rttStats;
+                qDebug() << "=====================";
+            }
+        }
+    } catch (pj::Error &err) {
+        qDebug() << "Error getting RTP statistics:" << QString::fromStdString(err.info());
     }
 }

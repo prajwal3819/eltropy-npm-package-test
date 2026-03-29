@@ -13,11 +13,10 @@ void MainWindow::createCallTestTab()
     // Title
     QLabel *titleLabel = new QLabel("☎️ SIP Call Testing");
     QFont titleFont;
-    titleFont.setPointSize(18);
+    titleFont.setPointSize(23);
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
-    titleLabel->setStyleSheet("color: #f5ebebe6; margin-bottom: 10px;");
-    titleLabel->setStyleSheet("background-color: #1e1e1ee6; margin-bottom: 10px;");
+    titleLabel->setStyleSheet("color: #d4d4d4; padding: 10px;");
     mainLayout->addWidget(titleLabel);
     
     // Create horizontal layout for side-by-side sections
@@ -45,27 +44,94 @@ void MainWindow::createCallTestTab()
     );
     QVBoxLayout *regLayout = new QVBoxLayout(regGroup);
     
+    // Domain display (truncated - show last 19 characters)
+    QString fullDomain = m_sipDomain;
+    QString truncatedDomain = fullDomain.length() > 19 ? "..." + fullDomain.right(19) : fullDomain;
+    m_domainDisplayLabel = new QLabel(QString("📍 Registers to: <b>%1</b>").arg(truncatedDomain));
+    m_domainDisplayLabel->setStyleSheet(
+        "color: #a0a0a0; "
+        "font-size: 10pt; "
+        "padding: 5px 10px; "
+        "background-color: #2d2d30; "
+        "border-radius: 4px; "
+        "margin-bottom: 10px;"
+    );
+    m_domainDisplayLabel->setToolTip(fullDomain);
+    regLayout->addWidget(m_domainDisplayLabel);
+    
     // Transport selection
     QHBoxLayout *transportLayout = new QHBoxLayout();
     QLabel *transportLabel = new QLabel("Transport:");
     transportLabel->setStyleSheet("font-weight: bold; font-size: 11pt; color: #d4d4d4;");
     transportLabel->setMinimumWidth(90);
     m_transportCombo = new QComboBox();
-    m_transportCombo->addItem("UDP", static_cast<int>(SipTransportType::UDP));
     m_transportCombo->addItem("TCP", static_cast<int>(SipTransportType::TCP));
+    m_transportCombo->addItem("UDP", static_cast<int>(SipTransportType::UDP));
     m_transportCombo->addItem("TLS", static_cast<int>(SipTransportType::TLS));
-    m_transportCombo->setStyleSheet("padding: 8px; font-size: 11pt; color: #2c3e50; background-color: white;");
+    m_transportCombo->setStyleSheet(
+        "QComboBox {"
+        "    padding: 8px;"
+        "    font-size: 11pt;"
+        "    color: #2c3e50;"
+        "    background-color: white;"
+        "    border: 1px solid #bdc3c7;"
+        "    border-radius: 3px;"
+        "}"
+        "QComboBox::drop-down {"
+        "    border: none;"
+        "}"
+        "QComboBox::down-arrow {"
+        "    image: none;"
+        "    border-left: 5px solid transparent;"
+        "    border-right: 5px solid transparent;"
+        "    border-top: 5px solid #2c3e50;"
+        "    margin-right: 5px;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        "    background-color: white;"
+        "    color: #2c3e50;"
+        "    selection-background-color: #ecf0f1;"
+        "    selection-color: #2c3e50;"
+        "    border: 1px solid #bdc3c7;"
+        "}"
+    );
     m_transportCombo->setMinimumWidth(120);
     transportLayout->addWidget(transportLabel);
     transportLayout->addWidget(m_transportCombo);
-    transportLayout->addSpacing(30);
+    // transportLayout->addSpacing(30);
     
     // Port selection
     QLabel *portLabel = new QLabel("Port:");
     portLabel->setStyleSheet("font-weight: bold; font-size: 11pt; color: #d4d4d4;");
     portLabel->setMinimumWidth(60);
     m_portCombo = new QComboBox();
-    m_portCombo->setStyleSheet("padding: 8px; font-size: 11pt; color: #2c3e50; background-color: white;");
+    m_portCombo->setStyleSheet(
+        "QComboBox {"
+        "    padding: 8px;"
+        "    font-size: 11pt;"
+        "    color: #2c3e50;"
+        "    background-color: white;"
+        "    border: 1px solid #bdc3c7;"
+        "    border-radius: 3px;"
+        "}"
+        "QComboBox::drop-down {"
+        "    border: none;"
+        "}"
+        "QComboBox::down-arrow {"
+        "    image: none;"
+        "    border-left: 5px solid transparent;"
+        "    border-right: 5px solid transparent;"
+        "    border-top: 5px solid #2c3e50;"
+        "    margin-right: 5px;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        "    background-color: white;"
+        "    color: #2c3e50;"
+        "    selection-background-color: #ecf0f1;"
+        "    selection-color: #2c3e50;"
+        "    border: 1px solid #bdc3c7;"
+        "}"
+    );
     m_portCombo->setMinimumWidth(120);
     transportLayout->addWidget(portLabel);
     transportLayout->addWidget(m_portCombo);
@@ -163,53 +229,59 @@ void MainWindow::createCallTestTab()
     );
     QVBoxLayout *callLayout = new QVBoxLayout(callGroup);
     
-    // Destination input
-    QHBoxLayout *destLayout = new QHBoxLayout();
-    QLabel *destLabel = new QLabel("Call to:");
-    destLabel->setStyleSheet("font-weight: bold; font-size: 11pt; color: #d4d4d4;");
-    destLabel->setMinimumWidth(90);
+    // Single line with audio check options and call-to field
+    QHBoxLayout *callOptionsLayout = new QHBoxLayout();
+    
+    m_oneWayAudioRadio = new QRadioButton("🎤 One-Way");
+    m_oneWayAudioRadio->setStyleSheet("color: #d4d4d4; font-size: 10pt; padding: 5px;");
+    m_oneWayAudioRadio->setChecked(true);
+    m_oneWayAudioRadio->setEnabled(false);
+    callOptionsLayout->addWidget(m_oneWayAudioRadio);
+    
+    m_twoWayAudioRadio = new QRadioButton("🔊 Two-Way");
+    m_twoWayAudioRadio->setStyleSheet("color: #d4d4d4; font-size: 10pt; padding: 5px;");
+    m_twoWayAudioRadio->setEnabled(false);
+    callOptionsLayout->addWidget(m_twoWayAudioRadio);
+    
+    m_customNumberRadio = new QRadioButton("📞 Custom Number");
+    m_customNumberRadio->setStyleSheet("color: #d4d4d4; font-size: 10pt; padding: 5px;");
+    m_customNumberRadio->setEnabled(false);
+    callOptionsLayout->addWidget(m_customNumberRadio);
+    
+    callOptionsLayout->addSpacing(20);
+    
+    
     m_destinationEdit = new QLineEdit();
-    m_destinationEdit->setPlaceholderText("Enter extension (e.g., 7002, 7003)");
-    m_destinationEdit->setStyleSheet("padding: 8px; font-size: 11pt; color: #2c3e50; background-color: white; border: 2px solid #bdc3c7; border-radius: 5px;");
+    m_destinationEdit->setText("7002");
+    m_destinationEdit->setPlaceholderText("Enter number");
+    m_destinationEdit->setStyleSheet("padding: 6px; font-size: 10pt; color: #2c3e50; background-color: white; border: 2px solid #bdc3c7; border-radius: 5px;");
     m_destinationEdit->setEnabled(false);
-    destLayout->addWidget(destLabel);
-    destLayout->addWidget(m_destinationEdit);
-    callLayout->addLayout(destLayout);
+    m_destinationEdit->setMaximumWidth(150);
+    callOptionsLayout->addWidget(m_destinationEdit);
     
-    // Quick dial buttons
-    QHBoxLayout *quickDialLayout = new QHBoxLayout();
-    QLabel *quickLabel = new QLabel("Quick Dial:");
-    quickLabel->setStyleSheet("font-weight: bold; font-size: 11pt; color: #d4d4d4;");
-    quickLabel->setMinimumWidth(90);
-    quickDialLayout->addWidget(quickLabel);
+    callOptionsLayout->addStretch();
+    callLayout->addLayout(callOptionsLayout);
     
-    QStringList quickNumbers = {"7002", "7003", "7004", "7005"};
-    for (const QString &number : quickNumbers) {
-        QPushButton *quickBtn = new QPushButton(number);
-        quickBtn->setStyleSheet(
-            "QPushButton { "
-            "background-color: #95a5a6; "
-            "color: white; "
-            "padding: 8px 16px; "
-            "border-radius: 4px; "
-            "font-weight: bold; "
-            "font-size: 11pt; "
-            "}"
-            "QPushButton:hover { background-color: #7f8c8d; }"
-            "QPushButton:disabled { background-color: #ecf0f1; color: #bdc3c7; }"
-        );
-        quickBtn->setEnabled(false);
-        quickBtn->setMinimumWidth(70);
-        connect(quickBtn, &QPushButton::clicked, [this, number]() {
-            m_destinationEdit->setText(number);
-        });
-        quickDialLayout->addWidget(quickBtn);
-        
-        // Store for enabling/disabling later
-        quickBtn->setProperty("quickDial", true);
-    }
-    quickDialLayout->addStretch();
-    callLayout->addLayout(quickDialLayout);
+    // Instructional message area
+    m_callInstructionLabel = new QLabel(
+        "ℹ️ <b>One-Way Audio Check (calls *1):</b> You will hear a message from Eltropy VoIP testing platform. "
+            "If audio is clear, hang up. If not audible, there may be a RTP firewall issue with your network blocking incoming audio."
+    );
+    m_callInstructionLabel->setStyleSheet(
+        "background-color: #2d2d30; "
+        "border-left: 3px solid #3498DB; "
+        "padding: 10px; "
+        "color: #d4d4d4; "
+        "border-radius: 3px; "
+        "font-size: 12pt;"
+    );
+    m_callInstructionLabel->setWordWrap(true);
+    callLayout->addWidget(m_callInstructionLabel);
+    
+    // Connect radio buttons to update instructions
+    connect(m_oneWayAudioRadio, &QRadioButton::toggled, this, &MainWindow::updateCallInstructions);
+    connect(m_twoWayAudioRadio, &QRadioButton::toggled, this, &MainWindow::updateCallInstructions);
+    connect(m_customNumberRadio, &QRadioButton::toggled, this, &MainWindow::updateCallInstructions);
     
     // Call status
     m_callStatusLabel = new QLabel("⚪ No active call");
@@ -289,11 +361,10 @@ void MainWindow::createCallTestTab()
     QLabel *infoLabel = new QLabel(
         "ℹ️ <b>How to use:</b><br>"
         "1. Select transport (UDP/TCP/TLS) and port<br>"
-        "2. Click 'Register for Calls' to register with credentials (7001/7001)<br>"
-        "3. Enter destination extension or use Quick Dial buttons<br>"
-        "4. Click 'Make Call' to initiate the call<br>"
-        "5. Audio will work bidirectionally once call is connected<br>"
-        "6. Use Mute to toggle microphone, Hang Up to end call"
+        "2. Click 'Register for Calls' to register with the SIP server<br>"
+        "3. Choose audio check type: One-Way or Two-Way or Custom Number<br>" 
+        "4. Click 'Make Call' to initiate the audio check<br>"
+        "5. Use Mute to toggle microphone, Hang Up to end call"
     );
     infoLabel->setStyleSheet(
         "background-color: #2d2d30; "
@@ -364,37 +435,43 @@ void MainWindow::onUnregisterForCallClicked()
     
     m_makeCallBtn->setEnabled(false);
     m_destinationEdit->setEnabled(false);
-    
-    // Disable quick dial buttons
-    for (QPushButton *btn : m_callTestWidget->findChildren<QPushButton*>()) {
-        if (btn->property("quickDial").toBool()) {
-            btn->setEnabled(false);
-        }
-    }
+    m_oneWayAudioRadio->setEnabled(false);
+    m_twoWayAudioRadio->setEnabled(false);
+    m_customNumberRadio->setEnabled(false);
     
     addLog("Unregistered successfully", "SUCCESS");
 }
 
 void MainWindow::onMakeCallClicked()
 {
-    QString destination = m_destinationEdit->text().trimmed();
+    QString destination;
+    QString callType;
     
-    if (destination.isEmpty()) {
-        addLog("Please enter a destination number", "ERROR");
-        return;
+    // Determine destination based on audio check type
+    if (m_oneWayAudioRadio->isChecked()) {
+        destination = "*1";
+        callType = "One-Way Audio Check";
+        addLog("Initiating One-Way Audio Check (calling *1)...", "INFO");
+    } else if (m_twoWayAudioRadio->isChecked()) {
+        destination = "*2";
+        callType = "Two-Way Audio Check";
+        addLog("Initiating Two-Way Audio Check (calling *2)...", "INFO");
+    } else if (m_customNumberRadio->isChecked()) {
+        // Custom number from text field
+        destination = m_destinationEdit->text().trimmed();
+        if (destination.isEmpty()) {
+            addLog("Please enter a destination number", "ERROR");
+            return;
+        }
+        callType = "Custom Number";
+        addLog(QString("Making call to %1...").arg(destination), "INFO");
     }
-    
-    addLog(QString("Making call to %1...").arg(destination), "INFO");
     
     m_makeCallBtn->setEnabled(false);
     m_destinationEdit->setEnabled(false);
-    
-    // Disable quick dial buttons
-    for (QPushButton *btn : m_callTestWidget->findChildren<QPushButton*>()) {
-        if (btn->property("quickDial").toBool()) {
-            btn->setEnabled(false);
-        }
-    }
+    m_oneWayAudioRadio->setEnabled(false);
+    m_twoWayAudioRadio->setEnabled(false);
+    m_customNumberRadio->setEnabled(false);
     
     bool success = m_callManager->makeCall(destination);
     
@@ -403,13 +480,9 @@ void MainWindow::onMakeCallClicked()
     } else {
         m_makeCallBtn->setEnabled(true);
         m_destinationEdit->setEnabled(true);
-        
-        // Re-enable quick dial buttons
-        for (QPushButton *btn : m_callTestWidget->findChildren<QPushButton*>()) {
-            if (btn->property("quickDial").toBool()) {
-                btn->setEnabled(true);
-            }
-        }
+        m_oneWayAudioRadio->setEnabled(true);
+        m_twoWayAudioRadio->setEnabled(true);
+        m_customNumberRadio->setEnabled(true);
     }
 }
 
@@ -440,6 +513,14 @@ void MainWindow::onMuteToggled()
 void MainWindow::onCallRegistrationStatusChanged(bool registered, const QString &message)
 {
     if (registered) {
+        // Parse expiry time from message (format: "Registered (expires in XXXs)")
+        QRegularExpression expiryRegex("expires in (\\d+)s");
+        QRegularExpressionMatch match = expiryRegex.match(message);
+        if (match.hasMatch()) {
+            int expiresIn = match.captured(1).toInt();
+            m_callRegistrationExpiryTime = QDateTime::currentDateTime().addSecs(expiresIn);
+        }
+        
         m_registrationStatusLabel->setText("✅ " + message);
         m_registrationStatusLabel->setStyleSheet(
             "font-size: 12pt; "
@@ -456,13 +537,9 @@ void MainWindow::onCallRegistrationStatusChanged(bool registered, const QString 
         
         m_makeCallBtn->setEnabled(true);
         m_destinationEdit->setEnabled(true);
-        
-        // Enable quick dial buttons
-        for (QPushButton *btn : m_callTestWidget->findChildren<QPushButton*>()) {
-            if (btn->property("quickDial").toBool()) {
-                btn->setEnabled(true);
-            }
-        }
+        m_oneWayAudioRadio->setEnabled(true);
+        m_twoWayAudioRadio->setEnabled(true);
+        m_customNumberRadio->setEnabled(true);
         
         addLog("========================================", "SUCCESS");
         addLog("SIP Call Registration successful!", "SUCCESS");
@@ -470,6 +547,7 @@ void MainWindow::onCallRegistrationStatusChanged(bool registered, const QString 
         addLog("Ready to make calls", "SUCCESS");
         addLog("========================================", "SUCCESS");
     } else {
+        m_callRegistrationExpiryTime = QDateTime();
         m_registrationStatusLabel->setText("❌ " + message);
         m_registrationStatusLabel->setStyleSheet(
             "font-size: 12pt; "
@@ -488,6 +566,32 @@ void MainWindow::onCallRegistrationStatusChanged(bool registered, const QString 
     }
 }
 
+void MainWindow::updateCallRegistrationTimer()
+{
+    if (!m_callRegistrationExpiryTime.isValid()) {
+        return;
+    }
+    
+    QDateTime now = QDateTime::currentDateTime();
+    int secondsRemaining = now.secsTo(m_callRegistrationExpiryTime);
+    
+    if (secondsRemaining > 0) {
+        QString statusText = QString("✅ Registered (expires in %1s)").arg(secondsRemaining);
+        m_registrationStatusLabel->setText(statusText);
+    } else {
+        m_callRegistrationExpiryTime = QDateTime();
+        m_registrationStatusLabel->setText("⚠️ Registration expired");
+        m_registrationStatusLabel->setStyleSheet(
+            "font-size: 12pt; "
+            "padding: 10px; "
+            "background-color: #3a2e1e; "
+            "border-radius: 5px; "
+            "margin: 10px 0; "
+            "color: #ffa726;"
+        );
+    }
+}
+
 void MainWindow::onCallStateChanged(CallState state, const QString &info)
 {
     QString statusText;
@@ -499,17 +603,13 @@ void MainWindow::onCallStateChanged(CallState state, const QString &info)
             styleSheet += "background-color: #2d2d30; color: #d4d4d4;";
             m_makeCallBtn->setEnabled(true);
             m_destinationEdit->setEnabled(true);
+            m_oneWayAudioRadio->setEnabled(true);
+            m_twoWayAudioRadio->setEnabled(true);
+            m_customNumberRadio->setEnabled(true);
             m_hangupBtn->setEnabled(false);
             m_muteBtn->setEnabled(false);
             m_muteBtn->setChecked(false);
             m_muteBtn->setText("🔇 Mute");
-            
-            // Re-enable quick dial buttons
-            for (QPushButton *btn : m_callTestWidget->findChildren<QPushButton*>()) {
-                if (btn->property("quickDial").toBool()) {
-                    btn->setEnabled(true);
-                }
-            }
             break;
             
         case CallState::Calling:
@@ -532,6 +632,15 @@ void MainWindow::onCallStateChanged(CallState state, const QString &info)
         case CallState::Disconnected:
             statusText = "📴 " + info;
             styleSheet += "background-color: #3a1e1e; color: #f87171;";
+            m_makeCallBtn->setEnabled(true);
+            m_destinationEdit->setEnabled(true);
+            m_oneWayAudioRadio->setEnabled(true);
+            m_twoWayAudioRadio->setEnabled(true);
+            m_customNumberRadio->setEnabled(true);
+            m_hangupBtn->setEnabled(false);
+            m_muteBtn->setEnabled(false);
+            m_muteBtn->setChecked(false);
+            m_muteBtn->setText("🔇 Mute");
             addLog("Call ended", "INFO");
             break;
             
