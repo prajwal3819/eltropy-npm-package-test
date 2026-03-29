@@ -2,7 +2,7 @@ name: Windows Build
 
 on:
   push:
-    branches: [ main, develop , voip ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -32,17 +32,23 @@ jobs:
       
       - name: Install dependencies via vcpkg
         run: |
-          vcpkg install pjproject:x64-windows
-          vcpkg install openssl:x64-windows
-          vcpkg integrate install
+          $env:VCPKG_ROOT = "${{ github.workspace }}\vcpkg"
+          cd $env:VCPKG_ROOT
+          .\vcpkg install pjproject:x64-windows
+          .\vcpkg install openssl:x64-windows
+          .\vcpkg integrate install
+          Write-Host "VCPKG_ROOT: $env:VCPKG_ROOT"
+          Write-Host "Checking installed packages:"
+          .\vcpkg list
+          Write-Host "Checking pjsua2.hpp location:"
+          Get-ChildItem -Path "installed\x64-windows\include" -Recurse -Filter "pjsua2.hpp" -ErrorAction SilentlyContinue
         shell: powershell
       
       - name: Configure project
         run: |
+          set VCPKG_ROOT=${{ github.workspace }}\vcpkg
           qmake SIPConnectivityTester.pro -spec win32-g++ "CONFIG+=release"
         shell: cmd
-        env:
-          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       
       - name: Build application
         run: |

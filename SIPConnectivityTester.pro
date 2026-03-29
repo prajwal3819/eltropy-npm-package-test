@@ -21,39 +21,81 @@ DEFINES += QT_DISABLE_DEPRECATED_UP_TO=0x060000 # disables all APIs deprecated i
 DEFINES += QT_DEPRECATED_WARNINGS
 
 # PJSIP Configuration
-INCLUDEPATH += /opt/homebrew/include
 DEFINES += PJ_AUTOCONF=1 \
            PJ_IS_LITTLE_ENDIAN=1 \
            PJ_IS_BIG_ENDIAN=0
 
-LIBS += -L/opt/homebrew/lib \
-        -lpjsua2-aarch64-apple-darwin25.1.0 \
-        -lpjsua-aarch64-apple-darwin25.1.0 \
-        -lpjsip-ua-aarch64-apple-darwin25.1.0 \
-        -lpjsip-simple-aarch64-apple-darwin25.1.0 \
-        -lpjsip-aarch64-apple-darwin25.1.0 \
-        -lpjmedia-codec-aarch64-apple-darwin25.1.0 \
-        -lpjmedia-aarch64-apple-darwin25.1.0 \
-        -lpjmedia-videodev-aarch64-apple-darwin25.1.0 \
-        -lpjmedia-audiodev-aarch64-apple-darwin25.1.0 \
-        -lpjnath-aarch64-apple-darwin25.1.0 \
-        -lpjlib-util-aarch64-apple-darwin25.1.0 \
-        -lpj-aarch64-apple-darwin25.1.0 \
-        -lsrtp-aarch64-apple-darwin25.1.0 \
-        -lresample-aarch64-apple-darwin25.1.0 \
-        -lg7221codec-aarch64-apple-darwin25.1.0 \
-        -lilbccodec-aarch64-apple-darwin25.1.0 \
-        -lgsmcodec-aarch64-apple-darwin25.1.0 \
-        -lspeex-aarch64-apple-darwin25.1.0 \
-        -lwebrtc-aarch64-apple-darwin25.1.0 \
-        -lssl \
-        -lcrypto \
-        -framework CoreAudio \
-        -framework AudioToolbox \
-        -framework AVFoundation \
-        -framework CoreVideo \
-        -framework CoreMedia \
-        -framework VideoToolbox
+# Platform-specific PJSIP paths
+win32 {
+    # Windows with vcpkg
+    VCPKG_ROOT = $$(VCPKG_ROOT)
+    isEmpty(VCPKG_ROOT) {
+        VCPKG_ROOT = $$PWD/vcpkg
+    }
+    
+    INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
+    LIBS += -L$$VCPKG_ROOT/installed/x64-windows/lib \
+            -lpjsua2 \
+            -lpjsua \
+            -lpjsip-ua \
+            -lpjsip-simple \
+            -lpjsip \
+            -lpjmedia-codec \
+            -lpjmedia \
+            -lpjmedia-videodev \
+            -lpjmedia-audiodev \
+            -lpjnath \
+            -lpjlib-util \
+            -lpj \
+            -lsrtp \
+            -lresample \
+            -lg7221codec \
+            -lilbccodec \
+            -lgsmcodec \
+            -lspeex \
+            -lwebrtc \
+            -lssl \
+            -lcrypto \
+            -lws2_32 \
+            -lole32 \
+            -ldsound \
+            -ldxguid \
+            -lwinmm \
+            -liphlpapi
+}
+
+# macOS with Homebrew
+macx {
+    INCLUDEPATH += /opt/homebrew/include
+    LIBS += -L/opt/homebrew/lib \
+            -lpjsua2-aarch64-apple-darwin25.1.0 \
+            -lpjsua-aarch64-apple-darwin25.1.0 \
+            -lpjsip-ua-aarch64-apple-darwin25.1.0 \
+            -lpjsip-simple-aarch64-apple-darwin25.1.0 \
+            -lpjsip-aarch64-apple-darwin25.1.0 \
+            -lpjmedia-codec-aarch64-apple-darwin25.1.0 \
+            -lpjmedia-aarch64-apple-darwin25.1.0 \
+            -lpjmedia-videodev-aarch64-apple-darwin25.1.0 \
+            -lpjmedia-audiodev-aarch64-apple-darwin25.1.0 \
+            -lpjnath-aarch64-apple-darwin25.1.0 \
+            -lpjlib-util-aarch64-apple-darwin25.1.0 \
+            -lpj-aarch64-apple-darwin25.1.0 \
+            -lsrtp-aarch64-apple-darwin25.1.0 \
+            -lresample-aarch64-apple-darwin25.1.0 \
+            -lg7221codec-aarch64-apple-darwin25.1.0 \
+            -lilbccodec-aarch64-apple-darwin25.1.0 \
+            -lgsmcodec-aarch64-apple-darwin25.1.0 \
+            -lspeex-aarch64-apple-darwin25.1.0 \
+            -lwebrtc-aarch64-apple-darwin25.1.0 \
+            -lssl \
+            -lcrypto \
+            -framework CoreAudio \
+            -framework AudioToolbox \
+            -framework AVFoundation \
+            -framework CoreVideo \
+            -framework CoreMedia \
+            -framework VideoToolbox
+}
 
 # Input
 HEADERS += src/mainwindow.h \
