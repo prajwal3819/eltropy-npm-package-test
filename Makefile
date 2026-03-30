@@ -1385,6 +1385,10 @@ moc_mainwindow.cpp: src/mainwindow.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QGridLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QRadioButton \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qradiobutton.h \
 		src/connectivity/connectivitymanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QObject \
 		/opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
@@ -2287,6 +2291,10 @@ main.o: src/main.cpp src/mainwindow.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QGridLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QRadioButton \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qradiobutton.h \
 		src/connectivity/connectivitymanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QObject \
 		/opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
@@ -2611,6 +2619,10 @@ mainwindow.o: src/mainwindow.cpp src/mainwindow.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QGridLayout \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QRadioButton \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qradiobutton.h \
 		src/connectivity/connectivitymanager.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QObject \
 		/opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
@@ -2920,8 +2932,6 @@ mainwindow.o: src/mainwindow.cpp src/mainwindow.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/QGridLayout \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QScrollArea \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qscrollarea.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QFrame \

@@ -2,7 +2,7 @@ name: Windows Build
 
 on:
   push:
-    branches: [ main, develop,voip ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
