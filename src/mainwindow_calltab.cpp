@@ -433,6 +433,10 @@ void MainWindow::onUnregisterForCallClicked()
     m_registerCallBtn->setText("📞 Register for Calls");
     m_unregisterCallBtn->setEnabled(false);
     
+    // Re-enable transport and port selection when unregistered
+    m_transportCombo->setEnabled(true);
+    m_portCombo->setEnabled(true);
+    
     m_makeCallBtn->setEnabled(false);
     m_destinationEdit->setEnabled(false);
     m_oneWayAudioRadio->setEnabled(false);
@@ -534,6 +538,10 @@ void MainWindow::onCallRegistrationStatusChanged(bool registered, const QString 
         m_registerCallBtn->setEnabled(false);
         m_registerCallBtn->setText("✅ Registered");
         m_unregisterCallBtn->setEnabled(true);
+        
+        // Disable transport and port selection once registered
+        m_transportCombo->setEnabled(false);
+        m_portCombo->setEnabled(false);
         
         m_makeCallBtn->setEnabled(true);
         m_destinationEdit->setEnabled(true);

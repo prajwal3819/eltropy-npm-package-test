@@ -70,7 +70,8 @@ SOURCES       = src/main.cpp \
 		src/widgets/sipregistrationblock.cpp \
 		src/sip/sipregistrationmanager.cpp \
 		src/sip/sipcallmanager.cpp \
-		src/network/networkinfomanager.cpp moc_mainwindow.cpp \
+		src/network/networkinfomanager.cpp qrc_resources.cpp \
+		moc_mainwindow.cpp \
 		moc_iconnectivitychecker.cpp \
 		moc_tcpconnectivitychecker.cpp \
 		moc_udpconnectivitychecker.cpp \
@@ -106,6 +107,7 @@ OBJECTS       = main.o \
 		sipregistrationmanager.o \
 		sipcallmanager.o \
 		networkinfomanager.o \
+		qrc_resources.o \
 		moc_mainwindow.o \
 		moc_iconnectivitychecker.o \
 		moc_tcpconnectivitychecker.o \
@@ -925,6 +927,7 @@ Makefile: SIPConnectivityTester.pro /opt/homebrew/share/qt/mkspecs/macx-clang/qm
 		/opt/homebrew/share/qt/mkspecs/features/yacc.prf \
 		/opt/homebrew/share/qt/mkspecs/features/lex.prf \
 		SIPConnectivityTester.pro \
+		resources.qrc \
 		/opt/homebrew/lib/QtWidgets.framework/Resources/QtWidgets.prl \
 		/opt/homebrew/lib/QtGui.framework/Resources/QtGui.prl \
 		/opt/homebrew/lib/QtWebSockets.framework/Resources/QtWebSockets.prl \
@@ -1301,6 +1304,7 @@ Makefile: SIPConnectivityTester.pro /opt/homebrew/share/qt/mkspecs/macx-clang/qm
 /opt/homebrew/share/qt/mkspecs/features/yacc.prf:
 /opt/homebrew/share/qt/mkspecs/features/lex.prf:
 SIPConnectivityTester.pro:
+resources.qrc:
 /opt/homebrew/lib/QtWidgets.framework/Resources/QtWidgets.prl:
 /opt/homebrew/lib/QtGui.framework/Resources/QtGui.prl:
 /opt/homebrew/lib/QtWebSockets.framework/Resources/QtWebSockets.prl:
@@ -1318,11 +1322,16 @@ SIPConnectivityTester.app/Contents/PkgInfo:
 SIPConnectivityTester.app/Contents/Info.plist: 
 	@test -d SIPConnectivityTester.app/Contents || mkdir -p SIPConnectivityTester.app/Contents
 	@$(DEL_FILE) SIPConnectivityTester.app/Contents/Info.plist
-	@set -o pipefail && plutil -convert xml1 -o - /opt/homebrew/share/qt/mkspecs/macx-clang/Info.plist.app | sed -e "s,@SHORT_VERSION@,1.0,g" -e "s,\$${QMAKE_SHORT_VERSION},1.0,g" -e "s,@FULL_VERSION@,1.0.0,g" -e "s,\$${QMAKE_FULL_VERSION},1.0.0,g" -e "s,@TYPEINFO@,????,g" -e "s,\$${QMAKE_PKGINFO_TYPEINFO},????,g" -e "s,@BUNDLEIDENTIFIER@,com.yourcompany.SIPConnectivityTester,g" -e "s,\$${PRODUCT_BUNDLE_IDENTIFIER},com.yourcompany.SIPConnectivityTester,g" -e "s,\$${MACOSX_DEPLOYMENT_TARGET},14.0,g" -e "s,\$${IPHONEOS_DEPLOYMENT_TARGET},,g" -e "s,\$${TVOS_DEPLOYMENT_TARGET},,g" -e "s,\$${WATCHOS_DEPLOYMENT_TARGET},,g" -e "s,\$${IOS_LAUNCH_SCREEN},LaunchScreen,g" -e "s,@ICON@,,g" -e "s,\$${ASSETCATALOG_COMPILER_APPICON_NAME},,g" -e "s,@EXECUTABLE@,SIPConnectivityTester,g" -e "s,@LIBRARY@,SIPConnectivityTester,g" -e "s,\$${EXECUTABLE_NAME},SIPConnectivityTester,g" -e "s,@TYPEINFO@,????,g" -e "s,\$${QMAKE_PKGINFO_TYPEINFO},????,g" >SIPConnectivityTester.app/Contents/Info.plist
+	@set -o pipefail && plutil -convert xml1 -o - /opt/homebrew/share/qt/mkspecs/macx-clang/Info.plist.app | sed -e "s,@SHORT_VERSION@,1.0,g" -e "s,\$${QMAKE_SHORT_VERSION},1.0,g" -e "s,@FULL_VERSION@,1.0.0,g" -e "s,\$${QMAKE_FULL_VERSION},1.0.0,g" -e "s,@TYPEINFO@,????,g" -e "s,\$${QMAKE_PKGINFO_TYPEINFO},????,g" -e "s,@BUNDLEIDENTIFIER@,com.yourcompany.SIPConnectivityTester,g" -e "s,\$${PRODUCT_BUNDLE_IDENTIFIER},com.yourcompany.SIPConnectivityTester,g" -e "s,\$${MACOSX_DEPLOYMENT_TARGET},14.0,g" -e "s,\$${IPHONEOS_DEPLOYMENT_TARGET},,g" -e "s,\$${TVOS_DEPLOYMENT_TARGET},,g" -e "s,\$${WATCHOS_DEPLOYMENT_TARGET},,g" -e "s,\$${IOS_LAUNCH_SCREEN},LaunchScreen,g" -e "s,@ICON@,eltropy.png,g" -e "s,\$${ASSETCATALOG_COMPILER_APPICON_NAME},eltropy.png,g" -e "s,@EXECUTABLE@,SIPConnectivityTester,g" -e "s,@LIBRARY@,SIPConnectivityTester,g" -e "s,\$${EXECUTABLE_NAME},SIPConnectivityTester,g" -e "s,@TYPEINFO@,????,g" -e "s,\$${QMAKE_PKGINFO_TYPEINFO},????,g" >SIPConnectivityTester.app/Contents/Info.plist
+SIPConnectivityTester.app/Contents/Resources/eltropy.png: eltropy.png
+	@test -d SIPConnectivityTester.app/Contents/Resources/ || mkdir -p SIPConnectivityTester.app/Contents/Resources/
+	@$(DEL_FILE) SIPConnectivityTester.app/Contents/Resources/eltropy.png
+	@$(COPY_FILE) eltropy.png SIPConnectivityTester.app/Contents/Resources/eltropy.png
 
 all: Makefile \
 		SIPConnectivityTester.app/Contents/PkgInfo \
-		SIPConnectivityTester.app/Contents/Info.plist SIPConnectivityTester.app/Contents/MacOS/SIPConnectivityTester
+		SIPConnectivityTester.app/Contents/Info.plist \
+		SIPConnectivityTester.app/Contents/Resources/eltropy.png SIPConnectivityTester.app/Contents/MacOS/SIPConnectivityTester
 
 dist: distdir FORCE
 	(cd `dirname $(DISTDIR)` && $(TAR) $(DISTNAME).tar $(DISTNAME) && $(COMPRESS) $(DISTNAME).tar) && $(MOVE) `dirname $(DISTDIR)`/$(DISTNAME).tar.gz . && $(DEL_FILE) -r $(DISTDIR)
@@ -1330,6 +1339,7 @@ dist: distdir FORCE
 distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
+	$(COPY_FILE) --parents resources.qrc $(DISTDIR)/
 	$(COPY_FILE) --parents /opt/homebrew/share/qt/mkspecs/features/data/dummy.cpp $(DISTDIR)/
 	$(COPY_FILE) --parents src/mainwindow.h src/connectivity/iconnectivitychecker.h src/connectivity/tcpconnectivitychecker.h src/connectivity/udpconnectivitychecker.h src/connectivity/tlsconnectivitychecker.h src/connectivity/wssconnectivitychecker.h src/connectivity/rtpconnectivitychecker.h src/connectivity/multipingchecker.h src/connectivity/connectivitymanager.h src/connectivity/sipalgchecker.h src/connectivity/nattypechecker.h src/connectivity/voipqualitychecker.h src/models/connectivityresult.h src/models/environmentconfig.h src/widgets/connectivitytestblock.h src/widgets/sipregistrationblock.h src/sip/sipcallmanager.h src/sip/sipregistrationmanager.h src/network/networkdiagnostics.h src/network/networkinfomanager.h $(DISTDIR)/
 	$(COPY_FILE) --parents src/main.cpp src/mainwindow.cpp src/models/connectivityresult.cpp src/models/environmentconfig.cpp src/connectivity/connectivitymanager.cpp src/connectivity/multipingchecker.cpp src/connectivity/rtpconnectivitychecker.cpp src/connectivity/tcpconnectivitychecker.cpp src/connectivity/tlsconnectivitychecker.cpp src/connectivity/udpconnectivitychecker.cpp src/connectivity/wssconnectivitychecker.cpp src/connectivity/sipalgchecker.cpp src/connectivity/nattypechecker.cpp src/connectivity/voipqualitychecker.cpp src/widgets/connectivitytestblock.cpp src/widgets/sipregistrationblock.cpp src/sip/sipregistrationmanager.cpp src/sip/sipcallmanager.cpp src/network/networkinfomanager.cpp $(DISTDIR)/
@@ -1359,8 +1369,14 @@ check: first
 
 benchmark: first
 
-compiler_rcc_make_all:
+compiler_rcc_make_all: qrc_resources.cpp
 compiler_rcc_clean:
+	-$(DEL_FILE) qrc_resources.cpp
+qrc_resources.cpp: resources.qrc \
+		/opt/homebrew/share/qt/libexec/rcc \
+		eltropy.png
+	/opt/homebrew/share/qt/libexec/rcc -name resources resources.qrc -o qrc_resources.cpp
+
 compiler_moc_predefs_make_all: moc_predefs.h
 compiler_moc_predefs_clean:
 	-$(DEL_FILE) moc_predefs.h
@@ -2272,7 +2288,7 @@ compiler_yacc_impl_make_all:
 compiler_yacc_impl_clean:
 compiler_lex_make_all:
 compiler_lex_clean:
-compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean 
+compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_header_clean 
 
 ####### Compile
 
@@ -2601,7 +2617,9 @@ main.o: src/main.cpp src/mainwindow.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QProcess \
 		/opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
+		/opt/homebrew/lib/QtGui.framework/Headers/QIcon \
+		/opt/homebrew/lib/QtGui.framework/Headers/qicon.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o src/main.cpp
 
 mainwindow.o: src/mainwindow.cpp src/mainwindow.h \
@@ -3867,6 +3885,9 @@ networkinfomanager.o: src/network/networkinfomanager.cpp src/network/networkinfo
 		/opt/homebrew/lib/QtNetwork.framework/Headers/QNetworkReply \
 		/opt/homebrew/lib/QtNetwork.framework/Headers/qnetworkreply.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o networkinfomanager.o src/network/networkinfomanager.cpp
+
+qrc_resources.o: qrc_resources.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o qrc_resources.o qrc_resources.cpp
 
 moc_mainwindow.o: moc_mainwindow.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_mainwindow.o moc_mainwindow.cpp

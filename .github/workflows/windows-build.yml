@@ -2,7 +2,7 @@ name: Windows Build
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, voip ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -10,134 +10,161 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    
+
+    env:
+      PROJECT_DIR: SIPConnectivityTester
+
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
-      
+
+      # Setup MSVC
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # Install Qt
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
           version: '6.5.3'
           host: 'windows'
           target: 'desktop'
-          arch: 'win64_mingw'
+          arch: 'win64_msvc2019_64'
           modules: 'qtwebsockets'
           cache: true
-      
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-      
-      - name: Install dependencies via vcpkg
+
+      # Clone vcpkg
+      - name: Clone vcpkg
         run: |
-          $env:VCPKG_ROOT = "${{ github.workspace }}\vcpkg"
-          cd $env:VCPKG_ROOT
-          .\vcpkg install pjproject:x64-windows
-          .\vcpkg install openssl:x64-windows
-          .\vcpkg integrate install
-          Write-Host "VCPKG_ROOT: $env:VCPKG_ROOT"
-          Write-Host "Checking installed packages:"
-          .\vcpkg list
-          Write-Host "Checking pjsua2.hpp location:"
-          Get-ChildItem -Path "installed\x64-windows\include" -Recurse -Filter "pjsua2.hpp" -ErrorAction SilentlyContinue
-        shell: powershell
-      
-      - name: Configure project
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          bootstrap-vcpkg.bat
+        shell: cmd
+
+      # Install dependencies
+      - name: Install Dependencies
         run: |
+          set VCPKG_ROOT=%cd%\vcpkg
+          cd vcpkg
+
+          vcpkg install pjproject:x64-windows
+          vcpkg install openssl:x64-windows
+
+          vcpkg list
+
+          echo Checking pjsua2.hpp
+          dir installed\x64-windows\include /s pjsua2.hpp
+
+        shell: cmd
+
+      # Debug Project Structure
+      - name: Debug Files
+        run: |
+          dir
+          dir /s *.pro
+        shell: cmd
+
+      # Configure Project
+      - name: Configure Project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          call "%Qt6_DIR%\bin\qtenv2.bat"
           set VCPKG_ROOT=${{ github.workspace }}\vcpkg
-          qmake SIPConnectivityTester.pro -spec win32-g++ "CONFIG+=release"
+          qmake SIPConnectivityTester.pro -spec win32-msvc "CONFIG+=release"
         shell: cmd
-      
-      - name: Build application
+
+      # Build
+      - name: Build
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          mingw32-make -j4
+          nmake
         shell: cmd
-      
-      - name: Deploy Qt dependencies
+
+      # Deploy Qt
+      - name: Deploy Qt
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           cd release
           windeployqt --release --no-translations SIPConnectivityTester.exe
         shell: cmd
-      
-      - name: Copy additional DLLs
+
+      # Copy DLLs
+      - name: Copy DLLs
         run: |
-          # Copy PJSIP and OpenSSL DLLs from vcpkg
-          Copy-Item "$env:VCPKG_ROOT\installed\x64-windows\bin\*.dll" -Destination "release\" -ErrorAction SilentlyContinue
-        shell: powershell
-      
-      - name: Create portable package
+          copy vcpkg\installed\x64-windows\bin\*.dll ${{ env.PROJECT_DIR }}\release\
+        shell: cmd
+
+      # Create Portable Zip
+      - name: Create Portable
         run: |
           mkdir SIPConnectivityTester-Windows
-          xcopy /E /I release SIPConnectivityTester-Windows
+          xcopy /E /I ${{ env.PROJECT_DIR }}\release SIPConnectivityTester-Windows
           7z a SIPConnectivityTester-Windows-Portable.zip SIPConnectivityTester-Windows
         shell: cmd
-      
-      - name: Install WiX Toolset
+
+      # Install WiX
+      - name: Install WiX
         run: |
           dotnet tool install --global wix
           wix extension add WixToolset.UI.wixext
         shell: powershell
-      
-      - name: Create WiX installer configuration
+
+      # Create Installer
+      - name: Create Installer
         run: |
           $wxs = @"
           <?xml version="1.0" encoding="UTF-8"?>
           <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-            <Package Name="SIP Connectivity Tester" 
-                     Manufacturer="Eltropy" 
+            <Package Name="SIP Connectivity Tester"
+                     Manufacturer="Eltropy"
                      Version="1.0.0.0"
                      UpgradeCode="12345678-1234-1234-1234-123456789012">
-              
+
               <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
-              
+
               <Feature Id="MainFeature" Title="SIP Connectivity Tester" Level="1">
                 <ComponentGroupRef Id="ProductComponents" />
               </Feature>
-              
+
               <StandardDirectory Id="ProgramFiles6432Folder">
                 <Directory Id="INSTALLFOLDER" Name="SIPConnectivityTester" />
               </StandardDirectory>
             </Package>
-            
+
             <Fragment>
               <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-                <Component Id="MainExecutable">
-                  <File Source="release\SIPConnectivityTester.exe" />
+                <Component Id="MainExecutable" Guid="*">
+                  <File Source="${{ env.PROJECT_DIR }}\release\SIPConnectivityTester.exe" />
                 </Component>
               </ComponentGroup>
             </Fragment>
           </Wix>
           "@
+
           Set-Content -Path "installer.wxs" -Value $wxs
+
         shell: powershell
-      
-      - name: Build MSI installer
+
+      # Build MSI
+      - name: Build MSI
         run: |
           wix build installer.wxs -o SIPConnectivityTester-Setup.msi
         shell: cmd
         continue-on-error: true
-      
-      - name: Upload portable package
+
+      # Upload Portable
+      - name: Upload Portable
         uses: actions/upload-artifact@v4
         with:
           name: SIPConnectivityTester-Windows-Portable
           path: SIPConnectivityTester-Windows-Portable.zip
-      
-      - name: Upload MSI installer
+
+      # Upload MSI
+      - name: Upload MSI
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: SIPConnectivityTester-Windows-MSI
           path: SIPConnectivityTester-Setup.msi
-      
-      - name: Create Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            SIPConnectivityTester-Windows-Portable.zip
-            SIPConnectivityTester-Setup.msi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -139,6 +139,13 @@ SOURCES += src/main.cpp \
            src/sip/sipcallmanager.cpp \
            src/network/networkinfomanager.cpp
 
+# Resources
+RESOURCES += resources.qrc
+
+# Application icon
+win32:RC_ICONS = eltropy.png
+macx:ICON = eltropy.png
+
 # macOS specific settings
 macx {
     # Post-build step to add microphone permissions to Info.plist

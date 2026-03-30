@@ -46,7 +46,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupConnections();
     
     setWindowTitle("SIP Connectivity Tester - Eltropy VoIP V1.0.0");
-    resize(1000, 700);
+    showMaximized();
 }
 
 MainWindow::~MainWindow()
@@ -69,13 +69,28 @@ void MainWindow::setupUI()
                                 "padding: 20px; }");
     QVBoxLayout *headerLayout = new QVBoxLayout(headerWidget);
     
-    QLabel *titleLabel = new QLabel("📞 Eltropy VoIP Diagnostic Tool");
+    // Title with logo
+    QHBoxLayout *titleLayout = new QHBoxLayout();
+    
+    QLabel *logoLabel = new QLabel();
+    QPixmap logoPixmap(":/eltropy.png");
+    if (!logoPixmap.isNull()) {
+        logoLabel->setPixmap(logoPixmap.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+    logoLabel->setStyleSheet("background-color: transparent;");
+    titleLayout->addStretch();
+    titleLayout->addWidget(logoLabel);
+    
+    QLabel *titleLabel = new QLabel("Eltropy VoIP Diagnostic Tool");
     QFont titleFont;
     titleFont.setPointSize(24);
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
-    titleLabel->setStyleSheet("color: white;");
-    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setStyleSheet("color: white; background-color: transparent;");
+    titleLayout->addWidget(titleLabel);
+    titleLayout->addStretch();
+    
+    headerLayout->addLayout(titleLayout);
     
     QLabel *subtitleLabel = new QLabel("🔍 Test your connectivity with Eltropy VoIP Systems");
     QFont subtitleFont;
@@ -84,7 +99,6 @@ void MainWindow::setupUI()
     subtitleLabel->setStyleSheet("color: rgba(255, 255, 255, 0.9);");
     subtitleLabel->setAlignment(Qt::AlignCenter);
     
-    headerLayout->addWidget(titleLabel);
     headerLayout->addWidget(subtitleLabel);
     
     QHBoxLayout *envLayout = new QHBoxLayout();

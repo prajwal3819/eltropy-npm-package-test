@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>eltropy.png</file>
+    </qresource>
+</RCC>
