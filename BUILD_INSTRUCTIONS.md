@@ -2,6 +2,28 @@
 
 ## Quick Start
 
+### Windows
+
+**Before building, set up your environment:**
+
+1. **Add Qt to PATH** (replace with your Qt installation path):
+   ```cmd
+   set PATH=C:\Qt\6.5.3\mingw_64\bin;%PATH%
+   ```
+
+2. **Set VCPKG_ROOT** (if you have vcpkg installed):
+   ```cmd
+   set VCPKG_ROOT=C:\vcpkg
+   ```
+
+3. **Build**:
+   ```cmd
+   cd D:\Users\prajwal\Documents\GitHub\eltropy-npm-package-test
+   build.bat
+   ```
+
+**Don't have Qt installed yet?** See the [Windows Prerequisites](#prerequisites) section below.
+
 ### macOS (Recommended for Development)
 
 1. **Install Qt**:
