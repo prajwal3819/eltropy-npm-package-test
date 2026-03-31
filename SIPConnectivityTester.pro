@@ -27,14 +27,23 @@ DEFINES += PJ_AUTOCONF=1 \
 
 # Platform-specific PJSIP paths
 win32 {
-    # Windows with vcpkg
-    VCPKG_ROOT = $$(VCPKG_ROOT)
-    isEmpty(VCPKG_ROOT) {
-        VCPKG_ROOT = $$PWD/vcpkg
+    # Check for PJSIP_ROOT first (GitHub Actions), then vcpkg
+    PJSIP_ROOT = $$(PJSIP_ROOT)
+    isEmpty(PJSIP_ROOT) {
+        # Windows with vcpkg
+        VCPKG_ROOT = $$(VCPKG_ROOT)
+        isEmpty(VCPKG_ROOT) {
+            VCPKG_ROOT = $$PWD/vcpkg
+        }
+        INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
+        LIBS += -L$$VCPKG_ROOT/installed/x64-windows/lib
+    } else {
+        # PJSIP built from source
+        INCLUDEPATH += $$PJSIP_ROOT/include
+        LIBS += -L$$PJSIP_ROOT/lib
     }
     
-    INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
-    LIBS += -L$$VCPKG_ROOT/installed/x64-windows/lib \
+    LIBS += \
             -lpjsua2 \
             -lpjsua \
             -lpjsip-ua \

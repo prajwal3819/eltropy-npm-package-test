@@ -11,9 +11,6 @@ jobs:
   build-windows:
     runs-on: windows-latest
 
-    env:
-      PROJECT_DIR: SIPConnectivityTester
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -35,56 +32,103 @@ jobs:
           modules: 'qtwebsockets'
           cache: true
 
-      # Clone vcpkg
-      - name: Clone vcpkg
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git
-          cd vcpkg
-          bootstrap-vcpkg.bat
-        shell: cmd
+      # Cache vcpkg packages
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        id: cache-vcpkg
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/packages
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}-v1
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-
 
-      # Install dependencies
-      - name: Install Dependencies
-        run: |
-          set VCPKG_ROOT=%cd%\vcpkg
-          cd vcpkg
+      # Setup vcpkg
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
 
-          vcpkg install pjproject:x64-windows
+      # Install OpenSSL via vcpkg
+      - name: Install OpenSSL
+        if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+        run: |
           vcpkg install openssl:x64-windows
-
-          vcpkg list
-
-          echo Checking pjsua2.hpp
-          dir installed\x64-windows\include /s pjsua2.hpp
-
+          vcpkg integrate install
         shell: cmd
 
-      # Debug Project Structure
-      - name: Debug Files
+      # Integrate vcpkg if cached
+      - name: Integrate vcpkg (cached)
+        if: steps.cache-vcpkg.outputs.cache-hit == 'true'
+        run: vcpkg integrate install
+        shell: cmd
+
+      # Cache PJSIP build
+      - name: Cache PJSIP
+        uses: actions/cache@v3
+        id: cache-pjsip
+        with:
+          path: ${{ github.workspace }}/pjsip-install
+          key: ${{ runner.os }}-pjsip-2.14-v1
+          restore-keys: |
+            ${{ runner.os }}-pjsip-
+
+      # Build PJSIP from source (only if not cached)
+      - name: Build PJSIP
+        if: steps.cache-pjsip.outputs.cache-hit != 'true'
         run: |
-          dir
-          dir /s *.pro
+          git clone https://github.com/pjsip/pjproject.git
+          cd pjproject
+          
+          REM Configure PJSIP
+          python configure-windows.py
+          
+          REM Build PJSIP
+          msbuild pjproject-vs14.sln /p:Configuration=Release /p:Platform=x64 /m
+          
+          REM Create install directory
+          mkdir %GITHUB_WORKSPACE%\pjsip-install
+          mkdir %GITHUB_WORKSPACE%\pjsip-install\include
+          mkdir %GITHUB_WORKSPACE%\pjsip-install\lib
+          
+          REM Copy headers
+          xcopy /E /I pjlib\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
+          xcopy /E /I pjlib-util\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
+          xcopy /E /I pjnath\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
+          xcopy /E /I pjmedia\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
+          xcopy /E /I pjsip\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
+          
+          REM Copy libraries
+          copy lib\*.lib %GITHUB_WORKSPACE%\pjsip-install\lib\
+          
+        shell: cmd
+        continue-on-error: false
+
+      # Verify PJSIP cache
+      - name: Verify PJSIP Installation
+        run: |
+          echo Checking PJSIP installation...
+          dir %GITHUB_WORKSPACE%\pjsip-install\include
+          dir %GITHUB_WORKSPACE%\pjsip-install\lib
         shell: cmd
 
       # Configure Project
       - name: Configure Project
-        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          call "%Qt6_DIR%\bin\qtenv2.bat"
-          set VCPKG_ROOT=${{ github.workspace }}\vcpkg
+          set VCPKG_ROOT=%GITHUB_WORKSPACE%\vcpkg
+          set PJSIP_ROOT=%GITHUB_WORKSPACE%\pjsip-install
           qmake SIPConnectivityTester.pro -spec win32-msvc "CONFIG+=release"
         shell: cmd
 
       # Build
       - name: Build
-        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          nmake
+          nmake release
         shell: cmd
 
       # Deploy Qt
       - name: Deploy Qt
-        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           cd release
           windeployqt --release --no-translations SIPConnectivityTester.exe
@@ -93,14 +137,14 @@ jobs:
       # Copy DLLs
       - name: Copy DLLs
         run: |
-          copy vcpkg\installed\x64-windows\bin\*.dll ${{ env.PROJECT_DIR }}\release\
+          copy %GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\*.dll release\
         shell: cmd
 
       # Create Portable Zip
       - name: Create Portable
         run: |
           mkdir SIPConnectivityTester-Windows
-          xcopy /E /I ${{ env.PROJECT_DIR }}\release SIPConnectivityTester-Windows
+          xcopy /E /I release SIPConnectivityTester-Windows
           7z a SIPConnectivityTester-Windows-Portable.zip SIPConnectivityTester-Windows
         shell: cmd
 
@@ -136,7 +180,7 @@ jobs:
             <Fragment>
               <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
                 <Component Id="MainExecutable" Guid="*">
-                  <File Source="${{ env.PROJECT_DIR }}\release\SIPConnectivityTester.exe" />
+                  <File Source="release\SIPConnectivityTester.exe" />
                 </Component>
               </ComponentGroup>
             </Fragment>
