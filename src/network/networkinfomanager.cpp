@@ -191,7 +191,7 @@ void NetworkInfoManager::onGatewayPingFinished(int exitCode, QProcess::ExitStatu
         m_diagnostics.gatewayLatencyMs = parsePingLatency(output);
         qDebug() << "Gateway ping successful, parsed latency:" << m_diagnostics.gatewayLatencyMs << "ms";
     } else {
-        QString errorOutput = m_pingProcess ? m_pingProcess->readAllStandardError() : "";
+        QString errorOutput = m_pingProcess ? m_pingProcess->readAllStandardError() : QString("");
         m_diagnostics.gatewayLatencyMs = -1;
         qDebug() << "Gateway ping failed, exit code:" << exitCode << "error:" << errorOutput;
     }

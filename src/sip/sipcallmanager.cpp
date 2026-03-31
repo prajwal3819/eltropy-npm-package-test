@@ -813,7 +813,7 @@ void SipCallManager::updateRtpStatistics()
                                     
                                     // Get the TOS value from the socket
                                     if (getsockopt(tp_info.sock_info.rtp_sock, IPPROTO_IP, IP_TOS, 
-                                                   &tos, &tos_len) == 0) {
+                                                   reinterpret_cast<char*>(&tos), reinterpret_cast<int*>(&tos_len)) == 0) {
                                         // Extract DSCP from TOS (upper 6 bits)
                                         txQos = (tos >> 2) & 0x3F;
                                         m_configuredTxDscp = txQos;
