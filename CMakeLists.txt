@@ -19,6 +19,9 @@ set(PROJECT_SOURCES
     src/mainwindow.cpp
     src/mainwindow.h
     src/mainwindow.ui
+    src/mainwindow_calltab.cpp
+    src/mainwindow_advancedtab.cpp
+    src/mainwindow_resultstab.cpp
     src/connectivity/tcpconnectivitychecker.cpp
     src/connectivity/tcpconnectivitychecker.h
     src/connectivity/udpconnectivitychecker.cpp
@@ -38,6 +41,12 @@ set(PROJECT_SOURCES
     src/models/serverconfig.h
     src/models/environmentconfig.cpp
     src/models/environmentconfig.h
+    src/sip/sipregistrationmanager.cpp
+    src/sip/sipregistrationmanager.h
+    src/sip/sipcallmanager.cpp
+    src/sip/sipcallmanager.h
+    src/network/networkinfomanager.cpp
+    src/network/networkinfomanager.h
 )
 
 if(Qt6_FOUND)
@@ -52,6 +61,81 @@ else()
 endif()
 
 target_include_directories(SIPConnectivityTester PRIVATE src)
+
+# PJSIP Configuration
+if(WIN32)
+    if(DEFINED ENV{PJSIP_ROOT})
+        set(PJSIP_ROOT $ENV{PJSIP_ROOT})
+    elseif(DEFINED ENV{VCPKG_ROOT})
+        set(PJSIP_ROOT "$ENV{VCPKG_ROOT}/installed/x64-windows")
+    else()
+        message(FATAL_ERROR "PJSIP_ROOT or VCPKG_ROOT environment variable must be set")
+    endif()
+    
+    target_include_directories(SIPConnectivityTester PRIVATE
+        ${PJSIP_ROOT}/include
+    )
+    
+    target_link_directories(SIPConnectivityTester PRIVATE
+        ${PJSIP_ROOT}/lib
+    )
+    
+    target_link_libraries(SIPConnectivityTester PRIVATE
+        pjsua2-lib
+        pjsua-lib
+        pjsip-ua-lib
+        pjsip-simple-lib
+        pjsip-lib
+        pjmedia-codec-lib
+        pjmedia-lib
+        pjmedia-videodev-lib
+        pjmedia-audiodev-lib
+        pjmedia-lib
+        pjnath-lib
+        pjlib-util-lib
+        pjlib-lib
+        resample-lib
+        gsmcodec-lib
+        speex-lib
+        ilbccodec-lib
+        g7221codec-lib
+        srtp-lib
+        ws2_32
+        ole32
+        dsound
+        dxguid
+        winmm
+        iphlpapi
+    )
+elseif(APPLE)
+    # macOS PJSIP configuration
+    target_include_directories(SIPConnectivityTester PRIVATE
+        /usr/local/include
+    )
+    
+    target_link_directories(SIPConnectivityTester PRIVATE
+        /usr/local/lib
+    )
+    
+    target_link_libraries(SIPConnectivityTester PRIVATE
+        pjsua2
+        pjsua
+        pjsip-ua
+        pjsip-simple
+        pjsip
+        pjmedia-codec
+        pjmedia
+        pjmedia-videodev
+        pjmedia-audiodev
+        pjnath
+        pjlib-util
+        pjlib
+        "-framework CoreAudio"
+        "-framework AudioToolbox"
+        "-framework CoreFoundation"
+        "-framework Security"
+    )
+endif()
 
 if(Qt6_FOUND)
     target_link_libraries(SIPConnectivityTester PRIVATE

@@ -127,37 +127,42 @@ jobs:
           dir %GITHUB_WORKSPACE%\pjsip-install\lib
         shell: cmd
 
-      # Configure Project
+      # Configure Project with CMake
       - name: Configure Project
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && set VCPKG_ROOT=%GITHUB_WORKSPACE%\vcpkg && set PJSIP_ROOT=%GITHUB_WORKSPACE%\pjsip-install && qmake SIPConnectivityTester.pro -spec win32-msvc "CONFIG+=release"
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+        env:
+          PJSIP_ROOT: ${{ github.workspace }}\pjsip-install
         shell: cmd
 
-      # Build
+      # Build with CMake
       - name: Build
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && nmake release
+          cd build
+          cmake --build . --config Release
         shell: cmd
 
       # Deploy Qt
       - name: Deploy Qt
         run: |
-          cd release
+          cd build\Release
           windeployqt --release --no-translations SIPConnectivityTester.exe
         shell: cmd
 
       # Copy DLLs
       - name: Copy DLLs
         run: |
-          copy %GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\*.dll release\
+          xcopy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\*.dll" "build\Release\" 2>nul || echo No DLLs to copy
         shell: cmd
 
-      # Create Portable Zip
-      - name: Create Portable
+      # Create Portable Package
+      - name: Create Portable Package
         run: |
-          mkdir SIPConnectivityTester-Windows
-          xcopy /E /I release SIPConnectivityTester-Windows
-          7z a SIPConnectivityTester-Windows-Portable.zip SIPConnectivityTester-Windows
+          mkdir SIPConnectivityTester-Portable
+          xcopy /E /I /Y build\Release SIPConnectivityTester-Portable
+          powershell Compress-Archive -Path SIPConnectivityTester-Portable -DestinationPath SIPConnectivityTester-Windows-Portable.zip
         shell: cmd
 
       # Install WiX
