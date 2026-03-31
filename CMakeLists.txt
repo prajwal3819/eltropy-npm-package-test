@@ -21,8 +21,6 @@ set(PROJECT_SOURCES
     src/mainwindow.ui
     src/mainwindow_calltab.cpp
     src/mainwindow_advancedtab.cpp
-    src/mainwindow_siplog.cpp
-    src/mainwindow_voipqualitytab.cpp
     src/connectivity/tcpconnectivitychecker.cpp
     src/connectivity/tcpconnectivitychecker.h
     src/connectivity/udpconnectivitychecker.cpp
