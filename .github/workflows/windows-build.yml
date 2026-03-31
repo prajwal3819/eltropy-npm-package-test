@@ -81,26 +81,40 @@ jobs:
           git clone https://github.com/pjsip/pjproject.git
           cd pjproject
           
-          REM Configure PJSIP
-          python configure-windows.py
+          REM Create config_site.h manually
+          echo #define PJ_CONFIG_MINIMAL_SIZE 1 > pjlib\include\pj\config_site.h
+          echo #define PJMEDIA_HAS_VIDEO 1 >> pjlib\include\pj\config_site.h
+          echo #define PJMEDIA_HAS_SRTP 1 >> pjlib\include\pj\config_site.h
           
           REM Build PJSIP
-          msbuild pjproject-vs14.sln /p:Configuration=Release /p:Platform=x64 /m
+          msbuild pjproject-vs14.sln /p:Configuration=Release /p:Platform=x64 /m /p:UseEnv=true
           
-          REM Create install directory
-          mkdir %GITHUB_WORKSPACE%\pjsip-install
-          mkdir %GITHUB_WORKSPACE%\pjsip-install\include
-          mkdir %GITHUB_WORKSPACE%\pjsip-install\lib
+          REM Create install directory structure
+          if not exist "%GITHUB_WORKSPACE%\pjsip-install" mkdir "%GITHUB_WORKSPACE%\pjsip-install"
+          if not exist "%GITHUB_WORKSPACE%\pjsip-install\include" mkdir "%GITHUB_WORKSPACE%\pjsip-install\include"
+          if not exist "%GITHUB_WORKSPACE%\pjsip-install\lib" mkdir "%GITHUB_WORKSPACE%\pjsip-install\lib"
           
           REM Copy headers
-          xcopy /E /I pjlib\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
-          xcopy /E /I pjlib-util\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
-          xcopy /E /I pjnath\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
-          xcopy /E /I pjmedia\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
-          xcopy /E /I pjsip\include\* %GITHUB_WORKSPACE%\pjsip-install\include\
+          echo Copying headers...
+          xcopy /E /I /Y pjlib\include\* "%GITHUB_WORKSPACE%\pjsip-install\include\"
+          xcopy /E /I /Y pjlib-util\include\* "%GITHUB_WORKSPACE%\pjsip-install\include\"
+          xcopy /E /I /Y pjnath\include\* "%GITHUB_WORKSPACE%\pjsip-install\include\"
+          xcopy /E /I /Y pjmedia\include\* "%GITHUB_WORKSPACE%\pjsip-install\include\"
+          xcopy /E /I /Y pjsip\include\* "%GITHUB_WORKSPACE%\pjsip-install\include\"
           
-          REM Copy libraries
-          copy lib\*.lib %GITHUB_WORKSPACE%\pjsip-install\lib\
+          REM Find and copy libraries from build output
+          echo Copying libraries...
+          if exist "lib\*.lib" (
+            copy /Y "lib\*.lib" "%GITHUB_WORKSPACE%\pjsip-install\lib\"
+          ) else (
+            echo Searching for lib files in alternative locations...
+            for /r %%i in (*.lib) do copy /Y "%%i" "%GITHUB_WORKSPACE%\pjsip-install\lib\"
+          )
+          
+          REM Verify installation
+          echo Verifying PJSIP installation...
+          dir "%GITHUB_WORKSPACE%\pjsip-install\include"
+          dir "%GITHUB_WORKSPACE%\pjsip-install\lib"
           
         shell: cmd
         continue-on-error: false
