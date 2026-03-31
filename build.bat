@@ -34,6 +34,25 @@ if exist debug rmdir /s /q debug 2>nul
 echo Done.
 echo.
 
+REM Check for Qt WebSockets module
+echo Checking for Qt WebSockets module...
+for /f "tokens=*" %%i in ('qmake -query QT_INSTALL_LIBS') do set QT_LIBS=%%i
+if exist "%QT_LIBS%\cmake\Qt6WebSockets" (
+    echo Qt WebSockets module found.
+) else (
+    echo ERROR: Qt WebSockets module not found!
+    echo.
+    echo Please install Qt WebSockets module:
+    echo 1. Open Qt Maintenance Tool
+    echo 2. Select "Add or remove components"
+    echo 3. Check "Qt WebSockets" under Qt 6.5.3 ^> Additional Libraries
+    echo 4. Click Update
+    echo.
+    pause
+    exit /b 1
+)
+echo.
+
 REM Run qmake
 echo [2/4] Running qmake...
 qmake SIPConnectivityTester.pro -spec win32-g++ "CONFIG+=release"

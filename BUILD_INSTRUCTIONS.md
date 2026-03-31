@@ -90,6 +90,9 @@ cmake --build .
 1. **Install Qt for Windows**:
    - Download Qt installer from https://www.qt.io/download
    - Install Qt 6.5.3 (or later) with MinGW 64-bit compiler
+   - **IMPORTANT**: During installation, make sure to check:
+     - ✅ MinGW 64-bit compiler
+     - ✅ Qt WebSockets module (under Additional Libraries)
    - Example path: `C:\Qt\6.5.3\mingw_64`
 
 2. **Install vcpkg** (for PJSIP dependencies):
@@ -269,6 +272,22 @@ Or use the provided `build.bat` script which handles this automatically.
    ```cmd
    qmake SIPConnectivityTester.pro -spec win32-g++ "CONFIG+=release"
    ```
+
+### Windows: "Unknown module(s) in QT: websockets"
+**Problem**: Qt WebSockets module is not installed.
+
+**Solution**: Install Qt WebSockets module:
+1. Open Qt Maintenance Tool (e.g., `C:\Qt\MaintenanceTool.exe`)
+2. Select "Add or remove components"
+3. Navigate to Qt 6.5.3 → Additional Libraries
+4. Check "Qt WebSockets"
+5. Click "Update" to install
+
+Or verify it's installed:
+```cmd
+cd C:\Qt\6.5.3\mingw_64\lib\cmake
+dir Qt6WebSockets
+```
 
 ### Windows: Build works but .exe crashes on startup
 **Problem**: Missing DLL files.

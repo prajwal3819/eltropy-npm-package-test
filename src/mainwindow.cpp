@@ -66,7 +66,7 @@ void MainWindow::setupUI()
     QWidget *headerWidget = new QWidget();
     headerWidget->setStyleSheet("QWidget { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
                                 "stop:0 #667eea, stop:1 #764ba2); "
-                                "padding: 20px; }");
+                                "padding: 0px; }");
     QVBoxLayout *headerLayout = new QVBoxLayout(headerWidget);
     
     // Title with logo
@@ -88,6 +88,7 @@ void MainWindow::setupUI()
     titleLabel->setFont(titleFont);
     titleLabel->setStyleSheet("color: white; background-color: transparent;");
     titleLayout->addWidget(titleLabel);
+    titleLayout->setAlignment(Qt::AlignLeft);
     titleLayout->addStretch();
     
     headerLayout->addLayout(titleLayout);
