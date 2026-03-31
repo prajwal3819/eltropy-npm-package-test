@@ -19,8 +19,6 @@ set(PROJECT_SOURCES
     src/mainwindow.cpp
     src/mainwindow.h
     src/mainwindow.ui
-    src/mainwindow_calltab.cpp
-    src/mainwindow_advancedtab.cpp
     src/connectivity/tcpconnectivitychecker.cpp
     src/connectivity/tcpconnectivitychecker.h
     src/connectivity/udpconnectivitychecker.cpp
