@@ -175,6 +175,11 @@ SipCallManager::~SipCallManager()
     cleanupPjsip();
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4715) // not all control paths return a value - false positive
+#endif
+
 bool SipCallManager::initializePjsip()
 {
     if (m_initialized) {
@@ -339,6 +344,7 @@ bool SipCallManager::initializePjsip()
         }
         
         m_initialized = true;
+        return true;
         
     } catch (pj::Error &err) {
         QString error = QString("PJSIP initialization failed: %1 (status=%2)")
@@ -363,6 +369,10 @@ bool SipCallManager::initializePjsip()
         return false;
     }
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 void SipCallManager::cleanupPjsip()
 {
@@ -812,8 +822,13 @@ void SipCallManager::updateRtpStatistics()
                                     socklen_t tos_len = sizeof(tos);
                                     
                                     // Get the TOS value from the socket
+                                    #ifdef _WIN32
                                     if (getsockopt(tp_info.sock_info.rtp_sock, IPPROTO_IP, IP_TOS, 
                                                    reinterpret_cast<char*>(&tos), reinterpret_cast<int*>(&tos_len)) == 0) {
+                                    #else
+                                    if (getsockopt(tp_info.sock_info.rtp_sock, IPPROTO_IP, IP_TOS, 
+                                                   &tos, &tos_len) == 0) {
+                                    #endif
                                         // Extract DSCP from TOS (upper 6 bits)
                                         txQos = (tos >> 2) & 0x3F;
                                         m_configuredTxDscp = txQos;

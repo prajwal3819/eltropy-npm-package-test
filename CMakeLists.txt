@@ -169,6 +169,14 @@ if(APPLE)
         MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in
+        XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "-"
+        XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Manual"
+    )
+    
+    # Add post-build code signing for macOS
+    add_custom_command(TARGET SIPConnectivityTester POST_BUILD
+        COMMAND codesign --force --deep --sign - "$<TARGET_BUNDLE_DIR:SIPConnectivityTester>"
+        COMMENT "Ad-hoc code signing the application bundle"
     )
 endif()
 
