@@ -1,0 +1,86 @@
+name: PR Workflow
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js 20
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+        registry-url: 'https://npm.pkg.github.com'
+        scope: ${{ github.repository }}
+
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Install dependencies
+      run: npm install
+      env:
+        NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
+    
+    - name: Build package
+      run: npm run build:lib
+    
+    - name: Build Storybook
+      run: npm run build-storybook
+    
+    
+    - name: Get latest tag and bump patch
+      id: version
+      run: |
+        git fetch --tags
+
+        TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+        TAG=${TAG:-v0.0.0}
+
+        echo "Latest tag: $TAG"
+
+        VERSION_NO_V=${TAG#v}
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NO_V"
+
+        PATCH=$((PATCH + 1))
+
+        NEXT_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+        SHORT_SHA=$(git rev-parse --short HEAD)
+
+        FINAL_VERSION="${NEXT_VERSION}-pre-develop.${SHORT_SHA}"
+
+        echo "VERSION=$FINAL_VERSION" >> $GITHUB_ENV
+
+        echo "Publishing version: $FINAL_VERSION"
+
+
+    - name: Publish to GitHub Packages
+      run: |
+        npm version --no-git-tag-version ${VERSION}
+        npm publish --tag pre
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+    
+    - name: Upload Storybook to S3
+      run: |
+        aws s3 sync storybook-static/ s3://${{ vars.STORYBOOK_BUCKET }}/storybook/${{ env.VERSION }}/
+      env:
+        VERSION: ${{ env.VERSION }}
+    
