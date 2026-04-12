@@ -112,6 +112,11 @@ jobs:
         run: |
           echo Checking PJSIP installation...
           dir %GITHUB_WORKSPACE%\pjsip-install\include
+          echo.
+          echo Library files:
+          dir /B %GITHUB_WORKSPACE%\pjsip-install\lib\*.lib
+          echo.
+          echo Full library listing:
           dir %GITHUB_WORKSPACE%\pjsip-install\lib
         shell: cmd
 

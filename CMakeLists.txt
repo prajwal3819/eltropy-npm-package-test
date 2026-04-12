@@ -44,6 +44,10 @@ set(PROJECT_SOURCES
     src/sip/sipcallmanager.h
     src/network/networkinfomanager.cpp
     src/network/networkinfomanager.h
+    src/updater/autoupdater.cpp
+    src/updater/autoupdater.h
+    src/updater/updatedialog.cpp
+    src/updater/updatedialog.h
 )
 
 if(Qt6_FOUND)
@@ -78,25 +82,24 @@ if(WIN32)
     )
     
     target_link_libraries(SIPConnectivityTester PRIVATE
-        pjsua2-lib
-        pjsua-lib
-        pjsip-ua-lib
-        pjsip-simple-lib
-        pjsip-lib
-        pjmedia-codec-lib
-        pjmedia-lib
-        pjmedia-videodev-lib
-        pjmedia-audiodev-lib
-        pjmedia-lib
-        pjnath-lib
-        pjlib-util-lib
-        pjlib-lib
-        resample-lib
-        gsmcodec-lib
-        speex-lib
-        ilbccodec-lib
-        g7221codec-lib
-        srtp-lib
+        pjsua2-x86_64-x64-vc14-Release
+        pjsua-x86_64-x64-vc14-Release
+        pjsip-ua-x86_64-x64-vc14-Release
+        pjsip-simple-x86_64-x64-vc14-Release
+        pjsip-core-x86_64-x64-vc14-Release
+        pjmedia-codec-x86_64-x64-vc14-Release
+        pjmedia-x86_64-x64-vc14-Release
+        pjmedia-videodev-x86_64-x64-vc14-Release
+        pjmedia-audiodev-x86_64-x64-vc14-Release
+        pjnath-x86_64-x64-vc14-Release
+        pjlib-util-x86_64-x64-vc14-Release
+        pjlib-x86_64-x64-vc14-Release
+        resample-x86_64-x64-vc14-Release
+        gsmcodec-x86_64-x64-vc14-Release
+        speex-x86_64-x64-vc14-Release
+        ilbccodec-x86_64-x64-vc14-Release
+        g7221codec-x86_64-x64-vc14-Release
+        srtp-x86_64-x64-vc14-Release
         ws2_32
         ole32
         dsound
