@@ -81,6 +81,7 @@ if(WIN32)
     set(PJSIP_LIB_DIR ${PJSIP_ROOT}/lib)
     
     # List of PJSIP library base names to search for
+    # Order matters: higher-level libraries first, then their dependencies
     set(PJSIP_LIB_NAMES
         pjsua2
         pjsua
@@ -101,6 +102,8 @@ if(WIN32)
         ilbccodec
         g7221codec
         srtp
+        yuv
+        webrtc
     )
     
     set(PJSIP_LIBRARIES "")
@@ -128,14 +131,29 @@ if(WIN32)
     endforeach()
     
     # Link all found PJSIP libraries plus Windows system libraries
+    # Note: Library order matters for static linking
     target_link_libraries(SIPConnectivityTester PRIVATE
         ${PJSIP_LIBRARIES}
         ws2_32
+        wsock32
         ole32
+        oleaut32
+        uuid
+        odbc32
+        odbccp32
         dsound
         dxguid
         winmm
         iphlpapi
+        secur32
+        mswsock
+        advapi32
+        kernel32
+        user32
+        gdi32
+        winspool
+        comdlg32
+        shell32
     )
 elseif(APPLE)
     # macOS PJSIP configuration
