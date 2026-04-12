@@ -1,0 +1,28 @@
+name: Convert Icon to ICO
+
+on:
+  workflow_dispatch:
+
+jobs:
+  convert-icon:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      
+      - name: Install ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      
+      - name: Convert PNG to ICO
+        run: |
+          convert eltropy.png -define icon:auto-resize=256,128,64,48,32,16 eltropy.ico
+          ls -lh eltropy.ico
+      
+      - name: Commit ICO file
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add eltropy.ico
+          git commit -m "Add Windows icon file (eltropy.ico)" || echo "No changes to commit"
+          git push

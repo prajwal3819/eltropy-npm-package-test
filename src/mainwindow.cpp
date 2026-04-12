@@ -1258,7 +1258,7 @@ void MainWindow::createNetworkInfoTab()
     // Title and refresh button
     QHBoxLayout *headerLayout = new QHBoxLayout();
     QLabel *titleLabel = new QLabel("🌐 Network Diagnostics");
-    titleLabel->setStyleSheet("font-size: 18pt; font-weight: bold; color: #2c3e50;");
+    titleLabel->setStyleSheet("font-size: 18pt; font-weight: bold; color: #d4d4d4;");
     headerLayout->addWidget(titleLabel);
     
     QPushButton *refreshButton = new QPushButton("🔄 Refresh");
@@ -1287,69 +1287,69 @@ void MainWindow::createNetworkInfoTab()
     
     // Network Interfaces Section
     QGroupBox *interfacesGroup = new QGroupBox("Network Interfaces");
-    interfacesGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
+    interfacesGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; color: #d4d4d4; "
                                   "border: 2px solid #3498DB; border-radius: 5px; "
                                   "margin-top: 10px; padding-top: 10px; }"
                                   "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
     QVBoxLayout *interfacesLayout = new QVBoxLayout(interfacesGroup);
     m_interfacesLabel = new QLabel("Loading...");
-    m_interfacesLabel->setStyleSheet("font-size: 11pt; padding: 10px;");
+    m_interfacesLabel->setStyleSheet("font-size: 11pt; padding: 10px; color: #d4d4d4;");
     m_interfacesLabel->setWordWrap(true);
     interfacesLayout->addWidget(m_interfacesLabel);
     contentLayout->addWidget(interfacesGroup);
     
     // DNS Servers Section
     QGroupBox *dnsGroup = new QGroupBox("DNS Servers");
-    dnsGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
+    dnsGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; color: #d4d4d4; "
                            "border: 2px solid #27ae60; border-radius: 5px; "
                            "margin-top: 10px; padding-top: 10px; }"
                            "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
     QVBoxLayout *dnsLayout = new QVBoxLayout(dnsGroup);
     m_dnsLabel = new QLabel("Loading...");
-    m_dnsLabel->setStyleSheet("font-size: 11pt; padding: 10px;");
+    m_dnsLabel->setStyleSheet("font-size: 11pt; padding: 10px; color: #d4d4d4;");
     m_dnsLabel->setWordWrap(true);
     dnsLayout->addWidget(m_dnsLabel);
     contentLayout->addWidget(dnsGroup);
     
     // Gateway & DHCP Section
     QGroupBox *gatewayGroup = new QGroupBox("Gateway & DHCP");
-    gatewayGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
+    gatewayGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; color: #d4d4d4; "
                                "border: 2px solid #e67e22; border-radius: 5px; "
                                "margin-top: 10px; padding-top: 10px; }"
                                "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
     QVBoxLayout *gatewayLayout = new QVBoxLayout(gatewayGroup);
     m_gatewayLabel = new QLabel("Loading...");
-    m_gatewayLabel->setStyleSheet("font-size: 11pt; padding: 10px;");
+    m_gatewayLabel->setStyleSheet("font-size: 11pt; padding: 10px; color: #d4d4d4;");
     m_gatewayLabel->setWordWrap(true);
     gatewayLayout->addWidget(m_gatewayLabel);
     m_dhcpLabel = new QLabel("Loading...");
-    m_dhcpLabel->setStyleSheet("font-size: 11pt; padding: 10px;");
+    m_dhcpLabel->setStyleSheet("font-size: 11pt; padding: 10px; color: #d4d4d4;");
     m_dhcpLabel->setWordWrap(true);
     gatewayLayout->addWidget(m_dhcpLabel);
     contentLayout->addWidget(gatewayGroup);
     
     // Latency Section
     QGroupBox *latencyGroup = new QGroupBox("Network Latency");
-    latencyGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
+    latencyGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; color: #d4d4d4; "
                                "border: 2px solid #9b59b6; border-radius: 5px; "
                                "margin-top: 10px; padding-top: 10px; }"
                                "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
     QVBoxLayout *latencyLayout = new QVBoxLayout(latencyGroup);
     m_latencyLabel = new QLabel("Loading...");
-    m_latencyLabel->setStyleSheet("font-size: 11pt; padding: 10px;");
+    m_latencyLabel->setStyleSheet("font-size: 11pt; padding: 10px; color: #d4d4d4;");
     m_latencyLabel->setWordWrap(true);
     latencyLayout->addWidget(m_latencyLabel);
     contentLayout->addWidget(latencyGroup);
     
     // Public IP Section
     QGroupBox *publicIpGroup = new QGroupBox("Public IP Address");
-    publicIpGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; "
+    publicIpGroup->setStyleSheet("QGroupBox { font-weight: bold; font-size: 16pt; color: #d4d4d4; "
                                 "border: 2px solid #e74c3c; border-radius: 5px; "
                                 "margin-top: 10px; padding-top: 10px; }"
                                 "QGroupBox::title { subcontrol-origin: margin; left: 10px; }");
     QVBoxLayout *publicIpLayout = new QVBoxLayout(publicIpGroup);
     m_publicIpLabel = new QLabel("Detecting...");
-    m_publicIpLabel->setStyleSheet("font-size: 11pt; padding: 10px;");
+    m_publicIpLabel->setStyleSheet("font-size: 11pt; padding: 10px; color: #d4d4d4;");
     m_publicIpLabel->setWordWrap(true);
     publicIpLayout->addWidget(m_publicIpLabel);
     contentLayout->addWidget(publicIpGroup);

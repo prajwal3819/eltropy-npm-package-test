@@ -62,6 +62,11 @@ set(PROJECT_SOURCES
     src/updater/updatedialog.h
 )
 
+# Add Windows icon resource
+if(WIN32)
+    list(APPEND PROJECT_SOURCES app.rc)
+endif()
+
 if(Qt6_FOUND)
     qt_add_executable(SIPConnectivityTester
         MANUAL_FINALIZATION
