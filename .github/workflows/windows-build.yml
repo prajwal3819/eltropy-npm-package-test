@@ -92,11 +92,30 @@ jobs:
           
           REM Find and copy libraries from build output
           echo Copying libraries...
+          echo Searching for all .lib files...
+          dir /s /b *.lib
+          
+          REM Copy from common build output directories
           if exist "lib\*.lib" (
+            echo Copying from lib directory...
             copy /Y "lib\*.lib" "%GITHUB_WORKSPACE%\pjsip-install\lib\"
-          ) else (
-            echo Searching for lib files in alternative locations...
-            for /r %%i in (*.lib) do copy /Y "%%i" "%GITHUB_WORKSPACE%\pjsip-install\lib\"
+          )
+          
+          if exist "pjlib\lib\*.lib" (
+            echo Copying from pjlib\lib...
+            copy /Y "pjlib\lib\*.lib" "%GITHUB_WORKSPACE%\pjsip-install\lib\"
+          )
+          
+          if exist "pjsip\lib\*.lib" (
+            echo Copying from pjsip\lib...
+            copy /Y "pjsip\lib\*.lib" "%GITHUB_WORKSPACE%\pjsip-install\lib\"
+          )
+          
+          REM Recursively find and copy all .lib files as fallback
+          echo Copying all .lib files recursively...
+          for /r %%i in (*.lib) do (
+            echo Found: %%i
+            copy /Y "%%i" "%GITHUB_WORKSPACE%\pjsip-install\lib\" 2>nul
           )
           
           REM Verify installation

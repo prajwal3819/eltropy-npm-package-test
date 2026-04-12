@@ -77,29 +77,59 @@ if(WIN32)
         ${PJSIP_ROOT}/include
     )
     
-    target_link_directories(SIPConnectivityTester PRIVATE
-        ${PJSIP_ROOT}/lib
+    # Find PJSIP libraries with flexible naming
+    set(PJSIP_LIB_DIR ${PJSIP_ROOT}/lib)
+    
+    # List of PJSIP library base names to search for
+    set(PJSIP_LIB_NAMES
+        pjsua2
+        pjsua
+        pjsip-ua
+        pjsip-simple
+        pjsip-core
+        pjsip
+        pjmedia-codec
+        pjmedia
+        pjmedia-videodev
+        pjmedia-audiodev
+        pjnath
+        pjlib-util
+        pjlib
+        resample
+        gsmcodec
+        speex
+        ilbccodec
+        g7221codec
+        srtp
     )
     
+    set(PJSIP_LIBRARIES "")
+    
+    foreach(LIB_NAME ${PJSIP_LIB_NAMES})
+        # Try multiple naming patterns
+        find_library(${LIB_NAME}_LIB
+            NAMES 
+                ${LIB_NAME}-x86_64-x64-vc14-Release
+                ${LIB_NAME}-x86_64-x64-vc16-Release
+                ${LIB_NAME}-x64-vc14-Release
+                ${LIB_NAME}-x64-vc16-Release
+                ${LIB_NAME}
+                lib${LIB_NAME}
+            PATHS ${PJSIP_LIB_DIR}
+            NO_DEFAULT_PATH
+        )
+        
+        if(${LIB_NAME}_LIB)
+            list(APPEND PJSIP_LIBRARIES ${${LIB_NAME}_LIB})
+            message(STATUS "Found PJSIP library: ${${LIB_NAME}_LIB}")
+        else()
+            message(WARNING "Could not find PJSIP library: ${LIB_NAME}")
+        endif()
+    endforeach()
+    
+    # Link all found PJSIP libraries plus Windows system libraries
     target_link_libraries(SIPConnectivityTester PRIVATE
-        pjsua2-x86_64-x64-vc14-Release
-        pjsua-x86_64-x64-vc14-Release
-        pjsip-ua-x86_64-x64-vc14-Release
-        pjsip-simple-x86_64-x64-vc14-Release
-        pjsip-core-x86_64-x64-vc14-Release
-        pjmedia-codec-x86_64-x64-vc14-Release
-        pjmedia-x86_64-x64-vc14-Release
-        pjmedia-videodev-x86_64-x64-vc14-Release
-        pjmedia-audiodev-x86_64-x64-vc14-Release
-        pjnath-x86_64-x64-vc14-Release
-        pjlib-util-x86_64-x64-vc14-Release
-        pjlib-x86_64-x64-vc14-Release
-        resample-x86_64-x64-vc14-Release
-        gsmcodec-x86_64-x64-vc14-Release
-        speex-x86_64-x64-vc14-Release
-        ilbccodec-x86_64-x64-vc14-Release
-        g7221codec-x86_64-x64-vc14-Release
-        srtp-x86_64-x64-vc14-Release
+        ${PJSIP_LIBRARIES}
         ws2_32
         ole32
         dsound
