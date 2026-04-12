@@ -77,58 +77,20 @@ if(WIN32)
         ${PJSIP_ROOT}/include
     )
     
-    # Find PJSIP libraries with flexible naming
+    # Find all PJSIP libraries using GLOB
     set(PJSIP_LIB_DIR ${PJSIP_ROOT}/lib)
     
-    # List of PJSIP library base names to search for
-    # Order matters: higher-level libraries first, then their dependencies
-    set(PJSIP_LIB_NAMES
-        pjsua2
-        pjsua
-        pjsip-ua
-        pjsip-simple
-        pjsip-core
-        pjsip
-        pjmedia-codec
-        pjmedia
-        pjmedia-videodev
-        pjmedia-audiodev
-        pjnath
-        pjlib-util
-        pjlib
-        resample
-        gsmcodec
-        speex
-        ilbccodec
-        g7221codec
-        srtp
-        yuv
-        webrtc
-    )
+    # Use GLOB to find all .lib files in the PJSIP lib directory
+    file(GLOB PJSIP_LIBRARIES "${PJSIP_LIB_DIR}/*.lib")
     
-    set(PJSIP_LIBRARIES "")
-    
-    foreach(LIB_NAME ${PJSIP_LIB_NAMES})
-        # Try multiple naming patterns
-        find_library(${LIB_NAME}_LIB
-            NAMES 
-                ${LIB_NAME}-x86_64-x64-vc14-Release
-                ${LIB_NAME}-x86_64-x64-vc16-Release
-                ${LIB_NAME}-x64-vc14-Release
-                ${LIB_NAME}-x64-vc16-Release
-                ${LIB_NAME}
-                lib${LIB_NAME}
-            PATHS ${PJSIP_LIB_DIR}
-            NO_DEFAULT_PATH
-        )
-        
-        if(${LIB_NAME}_LIB)
-            list(APPEND PJSIP_LIBRARIES ${${LIB_NAME}_LIB})
-            message(STATUS "Found PJSIP library: ${${LIB_NAME}_LIB}")
-        else()
-            message(WARNING "Could not find PJSIP library: ${LIB_NAME}")
-        endif()
-    endforeach()
+    if(PJSIP_LIBRARIES)
+        message(STATUS "Found ${CMAKE_MATCH_COUNT} PJSIP libraries:")
+        foreach(LIB ${PJSIP_LIBRARIES})
+            message(STATUS "  - ${LIB}")
+        endforeach()
+    else()
+        message(FATAL_ERROR "No PJSIP libraries found in ${PJSIP_LIB_DIR}")
+    endif()
     
     # Link all found PJSIP libraries plus Windows system libraries
     # Note: Library order matters for static linking
