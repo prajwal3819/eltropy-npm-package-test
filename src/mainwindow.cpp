@@ -127,9 +127,10 @@ void MainWindow::setupUI()
     // Tab Widget below header
     QTabWidget *tabWidget = new QTabWidget();
     tabWidget->setStyleSheet("QTabWidget::pane { border: none; background: #f5f7fa; }"
-                            "QTabBar::tab { background: #ecf0f1; color: #2c3e50; padding: 10px 20px; "
+                            "QTabBar::tab { background: #ecf0f1; color: #2c3e50; padding: 12px 24px; "
+                            "font-size: 13pt; font-weight: 500; "
                             "border-top-left-radius: 5px; border-top-right-radius: 5px; margin-right: 2px; }"
-                            "QTabBar::tab:selected { background: #3498DB; color: white; font-weight: bold; }");
+                            "QTabBar::tab:selected { background: #3498DB; color: white; font-weight: bold; font-size: 13pt; }");
     
     mainLayout->addWidget(tabWidget);
     
@@ -1401,7 +1402,30 @@ void MainWindow::updateNetworkInfoDisplay(const NetworkDiagnostics &diagnostics)
 void MainWindow::onNetworkInfoUpdated(const NetworkDiagnostics &diagnostics)
 {
     updateNetworkInfoDisplay(diagnostics);
-    addLog("Network diagnostics updated", "INFO");
+    addLog("========== NETWORK DIAGNOSTICS ==========", "INFO");
+    
+    // Log network interfaces
+    addLog(QString("Network Interfaces: %1 found").arg(diagnostics.interfaces.count()), "INFO");
+    for (const NetworkInterfaceInfo &iface : diagnostics.interfaces) {
+        addLog(QString("  • %1 (%2)").arg(iface.hardwareName, iface.name), "INFO");
+        addLog(QString("    MAC: %1").arg(iface.macAddress), "INFO");
+        addLog(QString("    Active: %1").arg(iface.isActive ? "Yes" : "No"), "INFO");
+        for (const QHostAddress &addr : iface.ipAddresses) {
+            addLog(QString("    IP: %1").arg(addr.toString()), "INFO");
+        }
+    }
+    
+    // Log DNS servers
+    if (!diagnostics.dnsServers.isEmpty()) {
+        addLog(QString("DNS Servers: %1").arg(diagnostics.dnsServers.join(", ")), "INFO");
+    } else {
+        addLog("DNS Servers: None found", "WARNING");
+    }
+    
+    // Log gateway and DHCP
+    addLog(QString("Default Gateway: %1").arg(diagnostics.defaultGateway), "INFO");
+    addLog(QString("DHCP Server: %1").arg(diagnostics.dhcpServer), "INFO");
+    addLog("=========================================", "INFO");
 }
 
 void MainWindow::onGatewayLatencyMeasured(int latencyMs)

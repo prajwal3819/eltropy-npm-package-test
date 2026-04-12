@@ -13,15 +13,15 @@ void MainWindow::createCallTestTab()
     // Title
     QLabel *titleLabel = new QLabel("☎️ SIP Call Testing");
     QFont titleFont;
-    titleFont.setPointSize(23);
+    titleFont.setPointSize(16);
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
-    titleLabel->setStyleSheet("color: #d4d4d4; padding: 10px;");
+    titleLabel->setStyleSheet("color: #d4d4d4; padding: 5px;");
     mainLayout->addWidget(titleLabel);
     
     // Create horizontal layout for side-by-side sections
     QHBoxLayout *sectionsLayout = new QHBoxLayout();
-    sectionsLayout->setSpacing(20);
+    sectionsLayout->setSpacing(15);
     
     // Registration section
     QGroupBox *regGroup = new QGroupBox("1️⃣ Registration Configuration");
@@ -30,11 +30,11 @@ void MainWindow::createCallTestTab()
         "background-color: #1e1e1e; "
         "color: #d4d4d4; "
         "font-weight: bold; "
-        "font-size: 23pt; "
+        "font-size: 16pt; "
         "border: 2px solid #3498DB; "
         "border-radius: 8px; "
         "margin-top: 10px; "
-        "padding-top: 15px; "
+        "padding-top: 14px; "
         "}"
         "QGroupBox::title { "
         "subcontrol-origin: margin; "
@@ -215,11 +215,11 @@ void MainWindow::createCallTestTab()
         "background-color: #1e1e1e; "
         "color: #d4d4d4; "
         "font-weight: bold; "
-        "font-size: 23pt; "
+        "font-size: 16pt; "
         "border: 2px solid #27AE60; "
         "border-radius: 8px; "
         "margin-top: 10px; "
-        "padding-top: 15px; "
+        "padding-top: 14px; "
         "}"
         "QGroupBox::title { "
         "subcontrol-origin: margin; "

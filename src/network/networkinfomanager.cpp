@@ -29,6 +29,7 @@ NetworkInfoManager::~NetworkInfoManager()
 
 void NetworkInfoManager::refreshNetworkInfo()
 {
+    qDebug() << "========== NETWORK DIAGNOSTICS ==========";
     m_diagnostics = NetworkDiagnostics();
     
     // Gather synchronous information first
@@ -36,6 +37,26 @@ void NetworkInfoManager::refreshNetworkInfo()
     gatherDnsInfo();
     gatherGatewayInfo();
     gatherDhcpInfo();
+    
+    // Log gathered information
+    qDebug() << "Network Interfaces:";
+    for (const NetworkInterfaceInfo &iface : m_diagnostics.interfaces) {
+        qDebug() << "  -" << iface.hardwareName << "(" << iface.name << ")";
+        qDebug() << "    MAC:" << iface.macAddress;
+        qDebug() << "    Active:" << (iface.isActive ? "Yes" : "No");
+        for (const QHostAddress &addr : iface.ipAddresses) {
+            qDebug() << "    IP:" << addr.toString();
+        }
+    }
+    
+    qDebug() << "DNS Servers:";
+    for (const QString &dns : m_diagnostics.dnsServers) {
+        qDebug() << "  -" << dns;
+    }
+    
+    qDebug() << "Default Gateway:" << m_diagnostics.defaultGateway;
+    qDebug() << "DHCP Server:" << m_diagnostics.dhcpServer;
+    qDebug() << "=========================================";
     
     // Emit initial update with synchronous data
     emit networkInfoUpdated(m_diagnostics);
@@ -75,7 +96,44 @@ void NetworkInfoManager::gatherInterfaceInfo()
 
 void NetworkInfoManager::gatherDnsInfo()
 {
-    // On macOS, read DNS servers from /etc/resolv.conf
+#ifdef Q_OS_WIN
+    // Windows: Use ipconfig /all to get DNS servers
+    QProcess ipconfig;
+    ipconfig.start("ipconfig", QStringList() << "/all");
+    ipconfig.waitForFinished(2000);
+    QString output = ipconfig.readAllStandardOutput();
+    
+    QRegularExpression dnsRegex("DNS Servers[^:]*:\\s*([\\d\\.]+)");
+    QRegularExpressionMatchIterator it = dnsRegex.globalMatch(output);
+    while (it.hasNext()) {
+        QRegularExpressionMatch match = it.next();
+        QString dns = match.captured(1);
+        if (!m_diagnostics.dnsServers.contains(dns)) {
+            m_diagnostics.dnsServers.append(dns);
+        }
+    }
+    
+    // Also parse additional DNS servers on continuation lines
+    QStringList lines = output.split('\n');
+    bool inDnsSection = false;
+    for (const QString &line : lines) {
+        if (line.contains("DNS Servers")) {
+            inDnsSection = true;
+        } else if (inDnsSection && line.trimmed().isEmpty()) {
+            inDnsSection = false;
+        } else if (inDnsSection) {
+            QRegularExpression ipRegex("([\\d\\.]+)");
+            QRegularExpressionMatch match = ipRegex.match(line.trimmed());
+            if (match.hasMatch()) {
+                QString dns = match.captured(1);
+                if (!m_diagnostics.dnsServers.contains(dns)) {
+                    m_diagnostics.dnsServers.append(dns);
+                }
+            }
+        }
+    }
+#else
+    // On macOS/Linux, read DNS servers from /etc/resolv.conf
     QFile resolvConf("/etc/resolv.conf");
     if (resolvConf.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&resolvConf);
@@ -91,6 +149,7 @@ void NetworkInfoManager::gatherDnsInfo()
         resolvConf.close();
     }
     
+#ifdef Q_OS_MAC
     // Also try scutil on macOS for more accurate DNS info
     QProcess scutil;
     scutil.start("scutil", QStringList() << "--dns");
@@ -106,6 +165,8 @@ void NetworkInfoManager::gatherDnsInfo()
             m_diagnostics.dnsServers.append(dns);
         }
     }
+#endif
+#endif
 }
 
 void NetworkInfoManager::gatherGatewayInfo()
@@ -120,6 +181,22 @@ void NetworkInfoManager::gatherDhcpInfo()
 
 QString NetworkInfoManager::parseGatewayFromRoute()
 {
+#ifdef Q_OS_WIN
+    // Windows: Use ipconfig to find default gateway
+    QProcess ipconfig;
+    ipconfig.start("ipconfig", QStringList());
+    ipconfig.waitForFinished(2000);
+    QString output = ipconfig.readAllStandardOutput();
+    
+    QRegularExpression gwRegex("Default Gateway[^:]*:\\s*([\\d\\.]+)");
+    QRegularExpressionMatch match = gwRegex.match(output);
+    if (match.hasMatch()) {
+        return match.captured(1);
+    }
+    
+    return "Not found";
+#else
+    // macOS/Linux: Use netstat
     QProcess netstat;
     netstat.start("netstat", QStringList() << "-nr");
     netstat.waitForFinished(2000);
@@ -137,10 +214,26 @@ QString NetworkInfoManager::parseGatewayFromRoute()
     }
     
     return "Not found";
+#endif
 }
 
 QString NetworkInfoManager::parseDhcpFromLease()
 {
+#ifdef Q_OS_WIN
+    // Windows: Use ipconfig /all to find DHCP server
+    QProcess ipconfig;
+    ipconfig.start("ipconfig", QStringList() << "/all");
+    ipconfig.waitForFinished(2000);
+    QString output = ipconfig.readAllStandardOutput();
+    
+    QRegularExpression dhcpRegex("DHCP Server[^:]*:\\s*([\\d\\.]+)");
+    QRegularExpressionMatch match = dhcpRegex.match(output);
+    if (match.hasMatch()) {
+        return match.captured(1);
+    }
+    
+    return "Not found";
+#else
     // On macOS, DHCP lease info is in /var/db/dhcpclient/leases/
     QProcess ipconfig;
     ipconfig.start("ipconfig", QStringList() << "getpacket" << "en0");
@@ -154,6 +247,7 @@ QString NetworkInfoManager::parseDhcpFromLease()
     }
     
     return "Not found";
+#endif
 }
 
 void NetworkInfoManager::measureGatewayLatency()
@@ -176,7 +270,11 @@ void NetworkInfoManager::measureGatewayLatency()
     connect(m_pingProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &NetworkInfoManager::onGatewayPingFinished);
     
+#ifdef Q_OS_WIN
+    m_pingProcess->start("ping", QStringList() << "-n" << "3" << m_diagnostics.defaultGateway);
+#else
     m_pingProcess->start("ping", QStringList() << "-c" << "3" << m_diagnostics.defaultGateway);
+#endif
 }
 
 void NetworkInfoManager::onGatewayPingFinished(int exitCode, QProcess::ExitStatus exitStatus)
@@ -196,6 +294,13 @@ void NetworkInfoManager::onGatewayPingFinished(int exitCode, QProcess::ExitStatu
         qDebug() << "Gateway ping failed, exit code:" << exitCode << "error:" << errorOutput;
     }
     
+    // Log the result
+    if (m_diagnostics.gatewayLatencyMs >= 0) {
+        qDebug() << "Gateway Latency:" << m_diagnostics.gatewayLatencyMs << "ms";
+    } else {
+        qDebug() << "Gateway Latency: Unable to measure";
+    }
+    
     // Always emit the signal so UI gets updated
     emit gatewayLatencyMeasured(m_diagnostics.gatewayLatencyMs);
     
@@ -208,12 +313,19 @@ void NetworkInfoManager::onGatewayPingFinished(int exitCode, QProcess::ExitStatu
 int NetworkInfoManager::parsePingLatency(const QString &output)
 {
     // Parse average latency from ping output
-    // macOS format: "round-trip min/avg/max/stddev = 1.234/2.345/3.456/0.789 ms"
-    // Also try: "rtt min/avg/max/mdev = 1.234/2.345/3.456/0.789 ms"
-    
     qDebug() << "Parsing ping output for latency...";
     
-    // Try macOS format first
+#ifdef Q_OS_WIN
+    // Windows format: "Average = 12ms"
+    QRegularExpression winRegex("Average\\s*=\\s*(\\d+)ms");
+    QRegularExpressionMatch match = winRegex.match(output);
+    if (match.hasMatch()) {
+        int latency = match.captured(1).toInt();
+        qDebug() << "Parsed latency (Windows format):" << latency;
+        return latency;
+    }
+#else
+    // macOS format: "round-trip min/avg/max/stddev = 1.234/2.345/3.456/0.789 ms"
     QRegularExpression macRegex("round-trip[^=]+=\\s*[\\d\\.]+/([\\d\\.]+)/");
     QRegularExpressionMatch match = macRegex.match(output);
     if (match.hasMatch()) {
@@ -230,12 +342,13 @@ int NetworkInfoManager::parsePingLatency(const QString &output)
         qDebug() << "Parsed latency (Linux format):" << latency;
         return static_cast<int>(latency);
     }
+#endif
     
-    // Try simpler pattern
+    // Try simpler pattern as fallback
     QRegularExpression simpleRegex("avg[=/]([\\d\\.]+)");
-    match = simpleRegex.match(output);
-    if (match.hasMatch()) {
-        double latency = match.captured(1).toDouble();
+    QRegularExpressionMatch match2 = simpleRegex.match(output);
+    if (match2.hasMatch()) {
+        double latency = match2.captured(1).toDouble();
         qDebug() << "Parsed latency (simple format):" << latency;
         return static_cast<int>(latency);
     }
@@ -268,11 +381,15 @@ void NetworkInfoManager::onPublicIpCheckFinished(QNetworkReply *reply)
     
     if (reply->error() == QNetworkReply::NoError) {
         m_diagnostics.publicIp = reply->readAll().trimmed();
-        qDebug() << "Public IP discovered:" << m_diagnostics.publicIp;
+        qDebug() << "========================================";
+        qDebug() << "Public IP Address:" << m_diagnostics.publicIp;
+        qDebug() << "========================================";
         emit publicIpDiscovered(m_diagnostics.publicIp);
     } else {
         m_diagnostics.publicIp = "Unable to detect";
+        qDebug() << "========================================";
         qDebug() << "Public IP detection failed:" << reply->errorString();
+        qDebug() << "========================================";
         emit publicIpDiscovered(m_diagnostics.publicIp);
     }
     
