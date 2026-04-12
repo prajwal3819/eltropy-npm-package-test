@@ -29,6 +29,14 @@ set(PROJECT_SOURCES
     src/connectivity/wssconnectivitychecker.h
     src/connectivity/rtpconnectivitychecker.cpp
     src/connectivity/rtpconnectivitychecker.h
+    src/connectivity/multipingchecker.cpp
+    src/connectivity/multipingchecker.h
+    src/connectivity/nattypechecker.cpp
+    src/connectivity/nattypechecker.h
+    src/connectivity/voipqualitychecker.cpp
+    src/connectivity/voipqualitychecker.h
+    src/connectivity/sipalgchecker.cpp
+    src/connectivity/sipalgchecker.h
     src/connectivity/connectivitymanager.cpp
     src/connectivity/connectivitymanager.h
     src/connectivity/iconnectivitychecker.h
@@ -44,6 +52,10 @@ set(PROJECT_SOURCES
     src/sip/sipcallmanager.h
     src/network/networkinfomanager.cpp
     src/network/networkinfomanager.h
+    src/widgets/connectivitytestblock.cpp
+    src/widgets/connectivitytestblock.h
+    src/widgets/sipregistrationblock.cpp
+    src/widgets/sipregistrationblock.h
     src/updater/autoupdater.cpp
     src/updater/autoupdater.h
     src/updater/updatedialog.cpp
