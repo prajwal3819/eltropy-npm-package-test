@@ -163,10 +163,28 @@ jobs:
           windeployqt --release --no-translations SIPConnectivityTester.exe
         shell: cmd
 
-      # Copy DLLs
+      # Copy DLLs (optional - may not be needed if statically linked)
       - name: Copy DLLs
         run: |
-          xcopy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\*.dll" "build\Release\" 2>nul || echo No DLLs to copy
+          if exist "%GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\*.dll" (
+            xcopy /Y "%GITHUB_WORKSPACE%\vcpkg\installed\x64-windows\bin\*.dll" "build\Release\"
+          ) else (
+            echo No vcpkg DLLs found - likely statically linked
+          )
+        shell: cmd
+        continue-on-error: true
+
+      # Verify build output
+      - name: Verify Build Output
+        run: |
+          echo Checking for SIPConnectivityTester.exe...
+          if exist "build\Release\SIPConnectivityTester.exe" (
+            echo SUCCESS: SIPConnectivityTester.exe was built successfully
+            dir "build\Release\SIPConnectivityTester.exe"
+          ) else (
+            echo ERROR: SIPConnectivityTester.exe not found!
+            exit 1
+          )
         shell: cmd
 
       # Create Portable Package
