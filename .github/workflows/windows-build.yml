@@ -206,35 +206,27 @@ jobs:
         run: |
           $wxs = @"
           <?xml version="1.0" encoding="UTF-8"?>
-          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-            <Product Id="*" 
-                     Name="SIP Connectivity Tester" 
-                     Language="1033" 
-                     Version="1.0.0.0" 
-                     Manufacturer="Eltropy" 
+          <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+            <Package Name="SIP Connectivity Tester"
+                     Manufacturer="Eltropy"
+                     Version="1.0.0.0"
                      UpgradeCode="12345678-1234-1234-1234-123456789012">
-              
-              <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
 
-              <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
-              
-              <MediaTemplate EmbedCab="yes" />
+              <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
 
-              <Feature Id="ProductFeature" Title="SIP Connectivity Tester" Level="1">
+              <Feature Id="MainFeature" Title="SIP Connectivity Tester" Level="1">
                 <ComponentGroupRef Id="ProductComponents" />
               </Feature>
 
-              <Directory Id="TARGETDIR" Name="SourceDir">
-                <Directory Id="ProgramFiles64Folder">
-                  <Directory Id="INSTALLFOLDER" Name="SIPConnectivityTester" />
-                </Directory>
-              </Directory>
-            </Product>
+              <StandardDirectory Id="ProgramFiles64Folder">
+                <Directory Id="INSTALLFOLDER" Name="SIPConnectivityTester" />
+              </StandardDirectory>
+            </Package>
 
             <Fragment>
               <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-                <Component Id="MainExecutable" Guid="87654321-4321-4321-4321-210987654321">
-                  <File Id="SIPConnectivityTesterEXE" Source="build\Release\SIPConnectivityTester.exe" KeyPath="yes" />
+                <Component Id="MainExecutable" Guid="*">
+                  <File Source="build\Release\SIPConnectivityTester.exe" />
                 </Component>
               </ComponentGroup>
             </Fragment>
@@ -249,8 +241,14 @@ jobs:
       - name: Build MSI
         run: |
           wix build installer.wxs -out SIPConnectivityTester-Setup.msi
+          if exist "SIPConnectivityTester-Setup.msi" (
+            echo MSI created successfully
+            dir SIPConnectivityTester-Setup.msi
+          ) else (
+            echo ERROR: MSI was not created
+            exit 1
+          )
         shell: cmd
-        continue-on-error: true
 
       # Upload Portable
       - name: Upload Portable
