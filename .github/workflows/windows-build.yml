@@ -226,9 +226,19 @@ jobs:
           dotnet tool install --global wix --version 4.0.5
         shell: powershell
 
-      # Create Installer
+      # Harvest files for installer
+      - name: Harvest Files
+        run: |
+          echo Harvesting files from build\Release...
+          wix extension add WixToolset.Heat.Extension
+          wix build -ext WixToolset.Heat.Extension -define HarvestPath=build\Release -out files.wixobj -src files.wxs
+        shell: powershell
+        continue-on-error: true
+
+      # Create Installer using manual file listing
       - name: Create Installer
         run: |
+          # Create main WXS file
           $wxs = @"
           <?xml version="1.0" encoding="UTF-8"?>
           <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
@@ -250,15 +260,33 @@ jobs:
 
             <Fragment>
               <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-                <Component Id="MainExecutable" Guid="*">
-                  <File Source="build\Release\SIPConnectivityTester.exe" />
+          "@
+
+          # Add all files from build\Release directory
+          $files = Get-ChildItem -Path "build\Release" -File
+          $componentId = 1
+          foreach ($file in $files) {
+            $wxs += @"
+
+                <Component Id="Component$componentId" Guid="*">
+                  <File Source="build\Release\$($file.Name)" />
                 </Component>
+          "@
+            $componentId++
+          }
+
+          $wxs += @"
+
               </ComponentGroup>
             </Fragment>
           </Wix>
           "@
 
           Set-Content -Path "installer.wxs" -Value $wxs
+          
+          # Show the generated WXS for debugging
+          echo "Generated installer.wxs:"
+          Get-Content installer.wxs
 
         shell: powershell
 
