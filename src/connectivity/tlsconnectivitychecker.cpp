@@ -20,6 +20,22 @@ void TlsConnectivityChecker::checkConnectivity(const QString &host, int port, in
     m_port = port;
     m_completed = false;
 
+    // Check if SSL is supported
+    if (!QSslSocket::supportsSsl()) {
+        m_completed = true;
+        QString errorMsg = QString("SSL/TLS not supported. OpenSSL library not found. "
+                                  "Build version: %1, Runtime version: %2")
+                          .arg(QSslSocket::sslLibraryBuildVersionString())
+                          .arg(QSslSocket::sslLibraryVersionString());
+        
+        qWarning() << "TLS Check Failed:" << errorMsg;
+        
+        ConnectivityResult result(ConnectivityResult::TLS, m_host, m_port,
+                                 ConnectivityResult::Failed, errorMsg);
+        emit connectivityChecked(result);
+        return;
+    }
+
     m_socket = new QSslSocket(this);
     m_timeoutTimer = new QTimer(this);
     m_timeoutTimer->setSingleShot(true);
@@ -34,6 +50,9 @@ void TlsConnectivityChecker::checkConnectivity(const QString &host, int port, in
     connect(m_timeoutTimer, &QTimer::timeout, this, &TlsConnectivityChecker::onTimeout);
 
     emit progressUpdate(QString("Checking TLS connectivity to %1:%2...").arg(host).arg(port));
+
+    qDebug() << "TLS Check: SSL supported, build version:" << QSslSocket::sslLibraryBuildVersionString()
+             << "runtime version:" << QSslSocket::sslLibraryVersionString();
 
     m_elapsedTimer.start();
     m_socket->connectToHostEncrypted(host, port);
@@ -73,14 +92,14 @@ void TlsConnectivityChecker::onSslErrors(const QList<QSslError> &errors)
     for (const QSslError &error : errors) {
         errorMsg += error.errorString() + "; ";
     }
+    
+    qDebug() << "TLS SSL Errors (ignoring):" << errorMsg;
 
     m_socket->ignoreSslErrors();
 }
 
 void TlsConnectivityChecker::onError(QAbstractSocket::SocketError error)
 {
-    Q_UNUSED(error);
-    
     if (!m_socket || m_completed) {
         return;
     }
@@ -92,6 +111,12 @@ void TlsConnectivityChecker::onError(QAbstractSocket::SocketError error)
     
     if (socket) {
         errorMsg = socket->errorString();
+        qWarning() << "TLS Error:" << errorMsg << "Error code:" << error;
+        
+        // Check if SSL is still supported
+        if (!QSslSocket::supportsSsl()) {
+            errorMsg += " (SSL/TLS support not available - OpenSSL libraries may be missing)";
+        }
     }
     
     ConnectivityResult result(ConnectivityResult::TLS, m_host, m_port,

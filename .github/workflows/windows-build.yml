@@ -163,6 +163,31 @@ jobs:
           windeployqt --release --no-translations SIPConnectivityTester.exe
         shell: cmd
 
+      # Install OpenSSL for TLS support
+      - name: Install OpenSSL
+        run: |
+          choco install openssl -y
+          echo OpenSSL installed
+        shell: cmd
+
+      # Copy OpenSSL DLLs for TLS support
+      - name: Copy OpenSSL DLLs
+        run: |
+          echo Copying OpenSSL DLLs for TLS support...
+          if exist "C:\Program Files\OpenSSL\bin\libssl-3-x64.dll" (
+            copy "C:\Program Files\OpenSSL\bin\libssl-3-x64.dll" "build\Release\"
+            copy "C:\Program Files\OpenSSL\bin\libcrypto-3-x64.dll" "build\Release\"
+            echo OpenSSL 3.x DLLs copied
+          ) else if exist "C:\Program Files\OpenSSL-Win64\bin\libssl-1_1-x64.dll" (
+            copy "C:\Program Files\OpenSSL-Win64\bin\libssl-1_1-x64.dll" "build\Release\"
+            copy "C:\Program Files\OpenSSL-Win64\bin\libcrypto-1_1-x64.dll" "build\Release\"
+            echo OpenSSL 1.1.x DLLs copied
+          ) else (
+            echo WARNING: OpenSSL DLLs not found - TLS connectivity may not work
+            dir "C:\Program Files\OpenSSL*" /s /b
+          )
+        shell: cmd
+
       # Copy DLLs (optional - may not be needed if statically linked)
       - name: Copy DLLs
         run: |
