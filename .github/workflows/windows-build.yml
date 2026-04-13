@@ -226,16 +226,7 @@ jobs:
           dotnet tool install --global wix --version 4.0.5
         shell: powershell
 
-      # Harvest files for installer
-      - name: Harvest Files
-        run: |
-          echo Harvesting files from build\Release...
-          wix extension add WixToolset.Heat.Extension
-          wix build -ext WixToolset.Heat.Extension -define HarvestPath=build\Release -out files.wixobj -src files.wxs
-        shell: powershell
-        continue-on-error: true
-
-      # Create Installer using manual file listing
+      # Create Installer using dynamic file listing
       - name: Create Installer
         run: |
           # Create main WXS file
